@@ -5054,6 +5054,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
      enddo
 
      ! for use in forcing momentum
+     if(.not. zero_surface_stress_exceptBL) then
      if(horz_grid == MOM_BGRID) then
         do n=1,2
            do j=jsd,jed
@@ -5071,6 +5072,7 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
            enddo
         enddo
      endif
+ 	endif
 
   ! Calculate surface friction velocity
   ! FAFMIP stess experiment says do not do this. Default is .TRUE. See notes for
@@ -5097,6 +5099,18 @@ subroutine flux_adjust(Time, T_diag, Dens, Ext_mode, T_prog, Velocity, river, me
            enddo
         enddo
      endif
+
+     ! Zero surface stress after calculating surface friction velocity
+  	if (zero_surface_stress_exceptBL) then
+     do n=1,2
+        do j=jsc,jec
+           do i=isc,iec
+              Velocity%smf_bgrid(i,j,n) = 0.0
+              Velocity%smf_cgrid(i,j,n) = 0.0
+           enddo
+        enddo
+     enddo
+  	endif
   
 
   endif

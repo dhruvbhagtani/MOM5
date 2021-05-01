@@ -1738,7 +1738,7 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
 
   id_ustar = register_diag_field('ocean_model','ustar', Grd%tracer_axes(1:2),&
       Time%model_time, 'Friction velocity', 'm/s',                           &
-      missing_value = missing_value, range = (/-1e3.,1e3./))
+      missing_value = missing_value, range = (/-1.,1./))
 
   id_wavlen = register_diag_field('ocean_model','ww3 wavlen', Grd%tracer_axes(1:2),  &
        Time%model_time, 'mean wave length', 'm')
@@ -5369,7 +5369,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_3d_u(Time, Grd, id_vstokes, Velocity%stokes_drift(:,:,:,2))
   call diagnose_2d_u(Time, Grd, id_stokes_depth, Velocity%stokes_depth(:,:))
 
-  !--------stokes drift velocity and decay depth----------------------
+  !--------------------friction velocity----------------------
   call diagnose_2d(Time, Grd, id_ustar, Velocity%ustar(:,:))
 
   !--------runoff/calving/river related diagnostics----------------------

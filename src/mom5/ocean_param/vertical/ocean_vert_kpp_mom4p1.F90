@@ -450,7 +450,9 @@ integer  :: id_hblt           =-1
 integer  :: id_ws             =-1
 integer  :: id_lang_enh       =-1
 integer  :: id_lang           =-1
-integer  :: id_u10           =-1
+integer  :: id_u10            =-1
+integer  :: id_Vtsq           =-1
+integer  :: id_bfsfc          =-1
 
 integer  :: id_neut_rho_kpp_nloc          =-1
 integer  :: id_pot_rho_kpp_nloc           =-1
@@ -951,8 +953,18 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        missing_value = missing_value, range=(/0.0,1.E10/))
 
   id_u10 = register_diag_field('ocean_model','u10',Grd%tracer_axes(1:2), &
-       Time%model_time, '10m wind speed used for kpp Langmuir turbulence', 'm/s',                            &
+       Time%model_time, '10m wind speed used for kpp Langmuir turbulence', 'm/s',                     &
        missing_value = missing_value, range=(/0.0,1.e3/))
+
+  id_Vtsq = register_diag_field('ocean_model','Vtsq',Grd%tracer_axes(1:3), &
+       Time%model_time, 'Square of unresolved velocity shear', 'm^2/s^2',                     &
+       missing_value = missing_value, range=(/-1.e2,1.e2/))
+
+  id_bfsfc = register_diag_field('ocean_model','bfsfc',Grd%tracer_axes(1:2), &
+       Time%model_time, 'Surface buoyancy forcing', 'm^2/s^3',       &
+       missing_value = missing_value, range=(/-1.e-5,1.e-5/),                &
+       standard_name='ocean_surface_buoyancy_forcing')
+
 
   call watermass_diag_init(Time,Dens)
 
@@ -1893,6 +1905,8 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
 
       endif  ! endif for linear_hbl
 
+      call diagnose_3d(Time, Grd, id_Vtsq, Vtsq(:,:,:))
+
 !-----------------------------------------------------------------------
 !     find stability and buoyancy forcing for boundary layer
 !-----------------------------------------------------------------------
@@ -2002,6 +2016,8 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
 
         enddo
       enddo
+
+      call diagnose_2d(Time, Grd, id_bfsfc, bfsfc(:,:))
 
 !-----------------------------------------------------------------------
 !     determine caseA and caseB

@@ -453,7 +453,7 @@ integer  :: id_ws             =-1
 integer  :: id_lang_enh       =-1
 integer  :: id_lang           =-1
 integer  :: id_u10            =-1
-integer  :: id_Vtsq           =-1
+integer  :: id_Vtsq_array     =-1
 integer  :: id_dVsq           =-1
 integer  :: id_bfsfc          =-1
 
@@ -2038,9 +2038,7 @@ subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
 
         enddo
       enddo
-      if (id_bfsfc > 0)
-        call diagnose_2d(Time, Grd, id_bfsfc, bfsfc(:,:))
-      endif
+      if (id_bfsfc > 0) call diagnose_2d(Time, Grd, id_bfsfc, bfsfc(:,:))
 
 !-----------------------------------------------------------------------
 !     determine caseA and caseB

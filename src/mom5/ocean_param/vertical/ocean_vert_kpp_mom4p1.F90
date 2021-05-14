@@ -310,6 +310,7 @@ real, dimension(isd:ied,jsd:jed,nk)             :: dVsq       ! (velocity shear 
 real, dimension(isd:ied,jsd:jed,3)              :: Rib        ! Bulk Richardson number
 real, dimension(isd:ied,jsd:jed,3)              :: gat1
 real, dimension(isd:ied,jsd:jed,3)              :: dat1
+real, dimension(isd:ied,jsd:jed,nk)             :: Vtsq_array ! Array to store complete Vtsq
 
 type wsfc_type
   real, dimension(isd:ied,jsd:jed)              :: wsfc        ! rho0r*(stf - pme*(t(i,j,k=1)-tpme) - river*(t(i,j,k=1)-triver))
@@ -349,6 +350,7 @@ real, dimension(:,:,:), allocatable    :: dVsq     ! (velocity shear re sfc)^2  
 real, dimension(:,:,:), allocatable    :: Rib      ! Bulk Richardson number
 real, dimension(:,:,:), allocatable    :: gat1
 real, dimension(:,:,:), allocatable    :: dat1
+real, dimension(:,:,:), allocatable    :: Vtsq_array  ! Array to store complete Vtsq
 
 type wsfc_type
   real, dimension(:,:), pointer        :: wsfc => NULL()  ! rho0r*(stf - pme*(t(i,j,k=1)-tpme) - river*(t(i,j,k=1)-triver))
@@ -452,6 +454,7 @@ integer  :: id_lang_enh       =-1
 integer  :: id_lang           =-1
 integer  :: id_u10            =-1
 integer  :: id_Vtsq           =-1
+integer  :: id_dVsq           =-1
 integer  :: id_bfsfc          =-1
 
 integer  :: id_neut_rho_kpp_nloc          =-1
@@ -956,9 +959,13 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, '10m wind speed used for kpp Langmuir turbulence', 'm/s',                     &
        missing_value = missing_value, range=(/0.0,1.e3/))
 
-  id_Vtsq = register_diag_field('ocean_model','Vtsq',Grd%tracer_axes(1:3), &
+  id_Vtsq_array = register_diag_field('ocean_model','Vtsq_array',Grd%tracer_axes(1:3), &
        Time%model_time, 'Square of unresolved velocity shear', 'm^2/s^2',                     &
-       missing_value = missing_value, range=(/-1.e2,1.e2/))
+       missing_value = missing_value, range=(/-1.e3,1.e3/))
+
+  id_dVsq = register_diag_field('ocean_model','dVsq',Grd%tracer_axes(1:3), &
+       Time%model_time, 'Square of resolved velocity shear', 'm^2/s^2',                     &
+       missing_value = missing_value, range=(/-1.e3,1.e3/))
 
   id_bfsfc = register_diag_field('ocean_model','bfsfc',Grd%tracer_axes(1:2), &
        Time%model_time, 'Surface buoyancy forcing', 'm^2/s^3',       &
@@ -1102,6 +1109,8 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
         enddo
       enddo
     endif
+
+    if(id_dVsq > 0) call diagnose_3d(Time, Grd, id_dVsq, dVsq(:,:,:)) 
 
 !-----------------------------------------------------------------------
 !     density related quantities
@@ -1268,7 +1277,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !     boundary layer mixing coefficients: diagnose new b.l. depth
 !-----------------------------------------------------------------------
 
-      call bldepth(Thickness, Velocity, sw_frac_zt, do_wave) 
+      call bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave) 
  
 !-----------------------------------------------------------------------
 !     boundary layer diffusivities
@@ -1637,10 +1646,11 @@ end subroutine vert_mix_kpp_mom4p1
 !      integer kbl(ij_bounds)     ! index of first grid level below hbl         <BR/>
 ! </DESCRIPTION>
 !
-subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
+subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
 
   type(ocean_thickness_type),   intent(in) :: Thickness
   type(ocean_velocity_type),   intent(in) :: Velocity
+  type(ocean_time_type),       intent(in)    :: Time
   real, dimension(isd:,jsd:,:), intent(in) :: sw_frac_zt   !3-D array of shortwave fract
   logical, intent(in)                      :: do_wave
 
@@ -1693,6 +1703,15 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
       ka = 1
       ku = 2
 
+      ! All calculations for Vtsq are done from k = 2,nk, so for now, we keep the first level 0.
+      ! Alternatively, we could also calculate it at the 1st level.
+      do j=jsc,jec
+         do i=isc,iec
+            Vtsq_array(i,j,1)  = 0
+          enddo
+      enddo
+
+
       do kl=2,nk
         klp1 = min(kl+1,nk)
           klm1 = kl-1
@@ -1733,6 +1752,7 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
                        * Vtc *(1.0-vtc_flag)                        &
                      + Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
                        * max(concv, vtc_flag*(concv +.4 - vtc_fac*bvfr)) * (Vtc*concv_r) * vtc_flag 
+              Vtsq_array(i,j,kl) = Vtsq
 
 !-----------------------------------------------------------------------
 !           compute bulk Richardson number at new level
@@ -1834,7 +1854,9 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
                 Vtsq =   Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
                          * Vtc *(1.0-vtc_flag)                        &
                        + Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
-                       * max(concv, vtc_flag*(concv +.4 - vtc_fac*bvfr)) * (Vtc*concv_r) * vtc_flag 
+                       * max(concv, vtc_flag*(concv +.4 - vtc_fac*bvfr)) * (Vtc*concv_r) * vtc_flag
+
+                Vtsq_array(i,j,kl) = Vtsq 
 
                 !-----------------------------------------------------------------------
                 ! compute bulk Richardson number at new level
@@ -1905,7 +1927,7 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
 
       endif  ! endif for linear_hbl
 
-      call diagnose_3d(Time, Grd, id_Vtsq, Vtsq(:,:,:))
+      if(id_Vtsq_array > 0) call diagnose_3d(Time, Grd, id_Vtsq_array, Vtsq_array(:,:,:))
 
 !-----------------------------------------------------------------------
 !     find stability and buoyancy forcing for boundary layer
@@ -2016,8 +2038,9 @@ subroutine bldepth(Thickness, Velocity, sw_frac_zt, do_wave)
 
         enddo
       enddo
-
-      call diagnose_2d(Time, Grd, id_bfsfc, bfsfc(:,:))
+      if (id_bfsfc > 0)
+        call diagnose_2d(Time, Grd, id_bfsfc, bfsfc(:,:))
+      endif
 
 !-----------------------------------------------------------------------
 !     determine caseA and caseB

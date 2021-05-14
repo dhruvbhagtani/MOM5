@@ -455,7 +455,7 @@ integer  :: id_lang           =-1
 integer  :: id_u10            =-1
 integer  :: id_Vtsq_array     =-1
 integer  :: id_dVsq           =-1
-integer  :: id_bfsfc          =-1
+!integer  :: id_bfsfc          =-1
 
 integer  :: id_neut_rho_kpp_nloc          =-1
 integer  :: id_pot_rho_kpp_nloc           =-1
@@ -967,10 +967,10 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, 'Square of resolved velocity shear', 'm^2/s^2',                     &
        missing_value = missing_value, range=(/-1.e3,1.e3/))
 
-  id_bfsfc = register_diag_field('ocean_model','bfsfc',Grd%tracer_axes(1:2), &
-       Time%model_time, 'Surface buoyancy forcing', 'm^2/s^3',       &
-       missing_value = missing_value, range=(/-1.e-5,1.e-5/),                &
-       standard_name='ocean_surface_buoyancy_forcing')
+  !id_bfsfc = register_diag_field('ocean_model','bfsfc',Grd%tracer_axes(1:2), &
+  !     Time%model_time, 'Surface buoyancy forcing', 'm^2/s^3',       &
+  !     missing_value = missing_value, range=(/-1.e-3,1.e-3/),                &
+  !     standard_name='ocean_surface_buoyancy_forcing')
 
 
   call watermass_diag_init(Time,Dens)
@@ -1695,6 +1695,11 @@ subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
         enddo
       enddo
 
+      do j=jsc,jec
+         do i=isc,iec
+            Vtsq_array(i,j,1)  = 0
+          enddo
+      enddo
 
       ! Following Large etal (1994), do linear interpolation to find hbl
       if (linear_hbl) then
@@ -1705,11 +1710,6 @@ subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
 
       ! All calculations for Vtsq are done from k = 2,nk, so for now, we keep the first level 0.
       ! Alternatively, we could also calculate it at the 1st level.
-      do j=jsc,jec
-         do i=isc,iec
-            Vtsq_array(i,j,1)  = 0
-          enddo
-      enddo
 
 
       do kl=2,nk
@@ -2038,7 +2038,7 @@ subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
 
         enddo
       enddo
-      if (id_bfsfc > 0) call diagnose_2d(Time, Grd, id_bfsfc, bfsfc(:,:))
+      !if (id_bfsfc > 0) call diagnose_2d(Time, Grd, id_bfsfc, bfsfc(:,:))
 
 !-----------------------------------------------------------------------
 !     determine caseA and caseB

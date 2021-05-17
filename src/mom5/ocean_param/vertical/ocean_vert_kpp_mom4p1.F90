@@ -310,7 +310,7 @@ real, dimension(isd:ied,jsd:jed,nk)             :: dVsq       ! (velocity shear 
 real, dimension(isd:ied,jsd:jed,3)              :: Rib        ! Bulk Richardson number
 real, dimension(isd:ied,jsd:jed,3)              :: gat1
 real, dimension(isd:ied,jsd:jed,3)              :: dat1
-!real, dimension(isd:ied,jsd:jed,nk)             :: Vtsq_array ! Array to store complete Vtsq
+real, dimension(isd:ied,jsd:jed,nk)             :: Vtsq_array ! Array to store complete Vtsq
 
 type wsfc_type
   real, dimension(isd:ied,jsd:jed)              :: wsfc        ! rho0r*(stf - pme*(t(i,j,k=1)-tpme) - river*(t(i,j,k=1)-triver))
@@ -350,7 +350,7 @@ real, dimension(:,:,:), allocatable    :: dVsq     ! (velocity shear re sfc)^2  
 real, dimension(:,:,:), allocatable    :: Rib      ! Bulk Richardson number
 real, dimension(:,:,:), allocatable    :: gat1
 real, dimension(:,:,:), allocatable    :: dat1
-!real, dimension(:,:,:), allocatable    :: Vtsq_array  ! Array to store complete Vtsq
+real, dimension(:,:,:), allocatable    :: Vtsq_array  ! Array to store complete Vtsq
 
 type wsfc_type
   real, dimension(:,:), pointer        :: wsfc => NULL()  ! rho0r*(stf - pme*(t(i,j,k=1)-tpme) - river*(t(i,j,k=1)-triver))
@@ -788,7 +788,7 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   allocate (gat1(isd:ied,jsd:jed,3))
   allocate (dat1(isd:ied,jsd:jed,3))
   allocate(sw_frac_hbl(isd:ied,jsd:jed))
-  !allocate (Vtsq_array(isd:ied,jsd:jed,nk))
+  allocate (Vtsq_array(isd:ied,jsd:jed,nk))
 
   allocate (langmuir_factor(isd:ied,jsd:jed))
   allocate (langmuir_number(isd:ied,jsd:jed))
@@ -962,11 +962,11 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
 
   id_Vtsq_array = register_diag_field('ocean_model','Vtsq_array',Grd%tracer_axes(1:3), &
        Time%model_time, 'Square of unresolved velocity shear', 'm^2/s^2',                     &
-       missing_value = missing_value, range=(/-1.e3,1.e3/))
+       missing_value = missing_value, range=(/0.0,1.e3/))
 
   id_dVsq = register_diag_field('ocean_model','dVsq',Grd%vel_axes_uv(1:3), &
        Time%model_time, 'Square of resolved velocity shear', 'm^2/s^2',                     &
-       missing_value = missing_value, range=(/-1.e3,1.e3/))
+       missing_value = missing_value, range=(/0.0,1.e3/))
 
   id_bfsfc = register_diag_field('ocean_model','bfsfc',Grd%tracer_axes(1:2), &
        Time%model_time, 'Surface buoyancy forcing', 'm^2/s^3',       &
@@ -1696,11 +1696,11 @@ subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
         enddo
       enddo
 
-      !do j=jsc,jec
-      !   do i=isc,iec
-      !      Vtsq_array(i,j,1)  = 0
-      !    enddo
-      !enddo
+      do j=jsc,jec
+         do i=isc,iec
+            Vtsq_array(i,j,1)  = 0
+          enddo
+      enddo
 
       ! Following Large etal (1994), do linear interpolation to find hbl
       if (linear_hbl) then
@@ -1753,7 +1753,7 @@ subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
                        * Vtc *(1.0-vtc_flag)                        &
                      + Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
                        * max(concv, vtc_flag*(concv +.4 - vtc_fac*bvfr)) * (Vtc*concv_r) * vtc_flag 
-              !Vtsq_array(i,j,kl) = Vtsq
+              Vtsq_array(i,j,kl) = Vtsq
 
 !-----------------------------------------------------------------------
 !           compute bulk Richardson number at new level
@@ -1857,7 +1857,7 @@ subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
                        + Thickness%depth_zt(i,j,kl) * ws(i,j) * bvfr  &
                        * max(concv, vtc_flag*(concv +.4 - vtc_fac*bvfr)) * (Vtc*concv_r) * vtc_flag
 
-                !Vtsq_array(i,j,kl) = Vtsq 
+                Vtsq_array(i,j,kl) = Vtsq 
 
                 !-----------------------------------------------------------------------
                 ! compute bulk Richardson number at new level
@@ -1928,7 +1928,7 @@ subroutine bldepth(Thickness, Velocity, Time, sw_frac_zt, do_wave)
 
       endif  ! endif for linear_hbl
 
-      !if(id_Vtsq_array > 0) call diagnose_3d(Time, Grd, id_Vtsq_array, Vtsq_array(:,:,:))
+      if(id_Vtsq_array > 0) call diagnose_3d(Time, Grd, id_Vtsq_array, Vtsq_array(:,:,:))
 
 !-----------------------------------------------------------------------
 !     find stability and buoyancy forcing for boundary layer

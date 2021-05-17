@@ -261,7 +261,7 @@ use ocean_types_mod,       only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5
 use ocean_workspace_mod,   only: wrk1_2d, wrk2_2d
-use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_u
 use ocean_tracer_util_mod, only: diagnose_3d_rho
 
 implicit none
@@ -1111,7 +1111,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
       enddo
     endif
 
-    if(id_dVsq > 0) call diagnose_3d(Time, Grd, id_dVsq, dVsq(:,:,:)) 
+    if(id_dVsq > 0) call diagnose_3d_u(Time, Grd, id_dVsq, dVsq(:,:,:)) 
 
 !-----------------------------------------------------------------------
 !     density related quantities

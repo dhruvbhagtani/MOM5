@@ -616,6 +616,8 @@ integer :: id_tau_y_net=-1
 integer :: id_latent_heat_vapor =-1
 integer :: id_latent_heat_fusion=-1
 
+integer :: id_ustar = -1
+
 integer :: id_ustokes      =-1
 integer :: id_vstokes      =-1
 integer :: id_stokes_depth =-1
@@ -1721,6 +1723,10 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        Time%model_time, 'j-directed stokes drift velocity', 'm/s',                   &
        missing_value=missing_value,range=(/-10.,10./),                       &
        standard_name='surface stokes drift y-velocity')
+
+  id_ustar = register_diag_field('ocean_model','ustar', Grd%tracer_axes(1:2),&
+      Time%model_time, 'Friction velocity', 'm/s',                           &
+      missing_value = missing_value, range = (/-1.,1./))
 
   id_wavlen = register_diag_field('ocean_model','ww3 wavlen', Grd%tracer_axes(1:2),  &
        Time%model_time, 'mean wave length', 'm')
@@ -5338,7 +5344,9 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_3d_u(Time, Grd, id_vstokes, Velocity%stokes_drift(:,:,:,2))
   call diagnose_2d_u(Time, Grd, id_stokes_depth, Velocity%stokes_depth(:,:))
 
-
+    !--------------------friction velocity----------------------
+  call diagnose_2d(Time, Grd, id_ustar, Velocity%ustar(:,:))
+  
   !--------runoff/calving/river related diagnostics----------------------
   !
   ! temperature of runoff

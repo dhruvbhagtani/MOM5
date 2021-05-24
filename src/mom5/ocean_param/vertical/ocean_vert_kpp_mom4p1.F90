@@ -451,6 +451,7 @@ integer  :: id_ws             =-1
 integer  :: id_lang_enh       =-1
 integer  :: id_lang           =-1
 integer  :: id_u10           =-1
+integer  :: id_dVsq           =-1
 
 integer  :: id_neut_rho_kpp_nloc          =-1
 integer  :: id_pot_rho_kpp_nloc           =-1
@@ -954,6 +955,10 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, '10m wind speed used for kpp Langmuir turbulence', 'm/s',                            &
        missing_value = missing_value, range=(/0.0,1.e3/))
 
+  id_dVsq = register_diag_field('ocean_model','dVsq',Grd%vel_axes_uv(1:3), &
+       Time%model_time, 'Square of resolved velocity shear', 'm^2/s^2',                     &
+       missing_value = missing_value, range=(/0.0,1.e3/))
+
   call watermass_diag_init(Time,Dens)
 
 
@@ -1090,6 +1095,8 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
         enddo
       enddo
     endif
+
+    if(id_dVsq > 0) call diagnose_3d_u(Time, Grd, id_dVsq, dVsq(:,:,:)) 
 
 !-----------------------------------------------------------------------
 !     density related quantities

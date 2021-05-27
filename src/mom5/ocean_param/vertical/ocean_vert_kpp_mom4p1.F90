@@ -241,12 +241,13 @@ module ocean_vert_kpp_mom4p1_mod
 !  compatibility, we default to smooth_ri_kmax_eq_kmu=.false. 
 !  </DATA> 
 !
-!  <DATA NAME="dVsq_Dhruv_param" TYPE="logical">
-!  When dVsq_Dhruv_param = .true., the resolved velocity shear (dVsq) 
-!  is calculated using an analytical parametrisation, instead of the 
-!  plain definition. Testing to implement in nostress models where
-!  we need KPP mixing layer to be independent of any changes in
-!  momentum equations. 
+!  <DATA NAME="dVsq_param" TYPE="logical">
+!  When dVsq_param = .true., the resolved velocity shear (dVsq)
+!  is calculated using an analytical parametrisation, instead of using
+!  the models resolved flow. This option is intended to be used with
+!  the option zero_surface_stress_exceptBL in ocean_sbc.F90 in order
+!  to better maintain the mixing in the KPP boundary layer when running
+!  with no surface momentum stresses.
 !  </DATA> 
 !
 
@@ -435,7 +436,7 @@ logical :: wsfc_combine_runoff_calve = .true.  ! for combining runoff+calving to
 logical :: bvf_from_below    = .false.   ! Use BV-freq. at the cell bottom instead of the cell top (Danabasoglu et al.) 
 logical :: variable_vtc      = .false.   ! Make vtc dependent on BV-freq.
 logical :: use_max_shear     = .false.   ! Use maximum shear instead of 4-point average
-logical :: dVsq_Dhruv_param  = .false.   ! Use analytical parameterization for resolved velocity shear
+logical :: dVsq_param        = .false.   ! Use analytical parameterization for resolved velocity shear
 logical :: linear_hbl        = .true.    ! To use the linear interpolation as Large etal (1994).
                                          ! Set to .false. for quadratic interpolation as in Danabasoglu et al.
 logical :: calc_visc_on_cgrid=.false.    ! calculate viscosity directly on c-grid
@@ -519,7 +520,7 @@ logical :: module_is_initialized = .FALSE.
 logical :: debug_this_module     = .FALSE.
 
 namelist /ocean_vert_kpp_mom4p1_nml/ use_this_module, shear_instability, double_diffusion,  &
-                                     diff_cbt_iw, visc_cbu_iw, dVsq_Dhruv_param             &
+                                     diff_cbt_iw, visc_cbu_iw, dVsq_param,                  &
                                      visc_cbu_limit, diff_cbt_limit,                        &
                                      visc_con_limit, diff_con_limit,                        &
                                      concv, Ricr, non_local_kpp, smooth_blmc,               &
@@ -669,7 +670,7 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
     write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: '// &
     'Use average shear around a tracer cell for diagnostics of hbl.'  
   endif
-  if(dVsq_Dhruv_param) then
+  if(dVsq_param) then
     write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Use explicit parameterization for dVsq'
   else
     write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Use velocity from momentum equations for dVsq'
@@ -1084,13 +1085,14 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !-----------------------------------------------------------------------
 !     compute vertical difference of velocity squared
 !-----------------------------------------------------------------------
-    if(dVsq_Dhruv_param) then
-      do k = 1, nk
-        do j = jsd, jed
-          do i = isd, ied
-            dVsq(i,j,k) = exp(-1e-4 * Thickness%depth_zt(i,j,k)/Velocity%ustar(i,j)**0.5)
-            dVsq(i,j,k) = dVsq(i,j,k) * (Velocity%ustar(i,j) + 80*Velocity%ustar(i,j)**2)
-            dVsq(i,j,k) = dVsq(i,j,k) * (Thickness%depth_zt(i,j,k)/60)
+    if(dVsq_param) then
+
+      do k=1,nk
+        do j=jsd,jed
+          do i=isd,ied
+            dVsq(i,j,k) = exp(-1.0e-4 * Thickness%depth_zt(i,j,k)/sqrt(Velocity%ustar(i,j)))
+            dVsq(i,j,k) = dVsq(i,j,k) * (Velocity%ustar(i,j) + 80.0*Velocity%ustar(i,j)**2)
+            dVsq(i,j,k) = dVsq(i,j,k) * (Thickness%depth_zt(i,j,k)/60.0)
           enddo
         enddo
       enddo

@@ -536,6 +536,7 @@ namelist /ocean_vert_kpp_mom4p1_nml/ use_this_module, shear_instability, double_
                                      use_sbl_bottom_flux, wsfc_combine_runoff_calve,        &
 			             bvf_from_below, variable_vtc, use_max_shear,           &
 			             linear_hbl, calc_visc_on_cgrid, smooth_ri_kmax_eq_kmu, &
+                                     exp_coeff, u_coeff_a, u_coeff_b, z_coeff_a,            &
                                      do_langmuir, do_langmuir_cvmix, calculate_u10
                                  
 

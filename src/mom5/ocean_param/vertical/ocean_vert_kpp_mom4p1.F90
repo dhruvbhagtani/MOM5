@@ -444,7 +444,7 @@ logical :: smooth_ri_kmax_eq_kmu=.false. ! to set details for smoothing the rich
 real    :: shear_instability_flag    = 1.0     ! set to 1.0 if shear_instability=.true.
 
 !Constants for dVsq_param
-real    :: exp_coeff         = -1.0e-4
+real    :: exp_coeff         = -1.0e-2
 real    :: u_coeff_a         = 80.0
 real    :: u_coeff_b         = 1.0
 real    :: z_coeff_a         = 60.0

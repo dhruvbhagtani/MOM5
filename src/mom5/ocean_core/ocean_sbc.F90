@@ -3527,8 +3527,8 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      do n=1,2
         do j=jsc,jec
            do i=isc,iec
-              Velocity%smf_bgrid(i,j,n) = 0.0
-              Velocity%smf_cgrid(i,j,n) = 0.0
+              Velocity%smf_bgrid(i,j,n) = Velocity%smf_bgrid(i,j,n) * Velocity%wmask(i,j)
+              Velocity%smf_cgrid(i,j,n) = Velocity%smf_cgrid(i,j,n) * Velocity%wmask(i,j)
            enddo
         enddo
      enddo

@@ -94,7 +94,7 @@ subroutine wind_mask_input (Domain, Grid, grid_file, vert_coordinate_type)
         call mpp_error(FATAL, "wind_mask_mod: mask does not exist in file "//trim(wind_mask)//)
     endif
 
-    call mpp_update_domains(Velocity%wmask(:,:)  , Dom%domain2d)
+    call mpp_update_domains(Velocity%wmask(:,:,:)  , Dom%domain2d)
 
 end subroutine wind_mask_input
 

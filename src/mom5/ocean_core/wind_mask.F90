@@ -90,9 +90,9 @@ subroutine wind_mask_input (Domain, Grid, Velocity)
     ! In future, add an option to input latitude and longitude ranges instead of NETCDF file
     ! for creating a mask in the model itself.
   if(file_exist(wind_mask))
-    call read_data(wind_mask, "mask", Velocity%wmask(isc:iec,jsc:jec,2), Domain%domain2d)
+    call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec,2), Domain%domain2d)
   else
-    call mpp_error(FATAL, "wind_mask_mod: mask does not exist in file "//trim(wind_mask)//)
+    call mpp_error(FATAL, 'wind_mask_mod: mask does not exist in file '//trim(wind_mask)//)
   endif
 
   call mpp_update_domains(Velocity%wmask(:,:,:), Domain%domain2d)

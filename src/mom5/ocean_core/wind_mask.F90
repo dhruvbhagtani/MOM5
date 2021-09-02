@@ -92,7 +92,7 @@ subroutine wind_mask_input (Domain, Grid, Velocity)
   if(file_exist(wind_mask))
     call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec,2), Domain%domain2d)
   else
-    call mpp_error(FATAL, 'wind_mask_mod: mask does not exist in file '//trim(wind_mask))
+    call mpp_error(FATAL, wind_mask_mod: 'file '//trim(ocean_topog)//' does not exist')
   endif
 
   call mpp_update_domains(Velocity%wmask(:,:,:), Domain%domain2d)

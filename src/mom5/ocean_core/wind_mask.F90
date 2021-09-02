@@ -49,10 +49,9 @@ contains
 !
 ! </DESCRIPTION>
 !
-subroutine wind_mask_input (Domain, Grid, Velocity)
+subroutine wind_mask_input (Domain, Velocity)
 
-  type(ocean_domain_type),   intent(in)    :: Domain
-  type(ocean_grid_type),     intent(in)    :: Grid
+  type(ocean_domain_type),   intent(inout) :: Domain
   type(ocean_velocity_type), intent(inout) :: Velocity
 
   character(len=128) :: wind_mask = "INPUT/wind_mask.nc"

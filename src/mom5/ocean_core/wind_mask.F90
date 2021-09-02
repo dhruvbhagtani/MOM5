@@ -19,10 +19,11 @@ module wind_mask_mod
 !
 !</NAMELIST>
 
-use fms_mod, only: open_namelist_file, close_file, check_nml_error
-use fms_mod, only: field_exist, read_data, file_exist
-use mpp_mod, only: input_nml_file, mpp_error
-use mpp_mod, only: FATAL, stdout, stdlog
+use fms_mod,         only: open_namelist_file, close_file, check_nml_error
+use fms_mod,         only: field_exist, read_data, file_exist
+use mpp_mod,         only: input_nml_file, mpp_error
+use mpp_mod,         only: FATAL, stdout, stdlog
+use mpp_domains_mod, only: mpp_update_domains
 
 use ocean_domains_mod, only: get_local_indices, get_domain_offsets
 use ocean_types_mod,   only: ocean_grid_type, ocean_domain_type, ocean_velocity_type

@@ -19,8 +19,6 @@ module wind_mask_mod
 !
 !</NAMELIST>
 
-logical :: use_this_module = .false. ! logical switch to input wind mask from NETCF file
-
 use fms_mod, only: open_namelist_file, close_file, check_nml_error
 use fms_mod, only: field_exist, read_data, file_exist
 use mpp_mod, only: input_nml_file, mpp_error
@@ -32,6 +30,8 @@ use ocean_types_mod,   only: ocean_grid_type, ocean_domain_type, ocean_velocity_
 implicit none
 
 #include <ocean_memory.h>
+
+logical :: use_this_module = .false. ! logical switch to input wind mask from NETCF file
 
 namelist /wind_mask_nml/ use_this_module!, use_nc_file, x_min, x_max, y_,min, y_max
 

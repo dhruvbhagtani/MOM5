@@ -442,7 +442,7 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   Velocity%current_wave_stress = 0.0
   Velocity%u10                 = 0.0
   Velocity%ustar               = 0.0
-  Velocity%wmask               = 0.0
+  Velocity%wmask               = 1.0
 
   ! register fields for diagnostic output
 

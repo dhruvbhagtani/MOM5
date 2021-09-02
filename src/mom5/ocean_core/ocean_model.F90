@@ -1178,7 +1178,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     call ocean_workspace_init(Domain, Grid)
     call set_ocean_hgrid_arrays(Domain, Grid)
     call ocean_topog_init(Domain, Grid, 'INPUT/grid_spec.nc', vert_coordinate_type)
-    call wind_mask_input(Domain, Grid, Velocity)
+    call wind_mask_input(Domain, Velocity)
     call ocean_obc_init(have_obc, Time_steps, Domain, Grid, Ocean_options, &
           vert_coordinate, debug=debug)
     call set_ocean_vgrid_arrays(Domain, Grid, have_obc)

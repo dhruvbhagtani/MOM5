@@ -1,40 +1,49 @@
 module wind_mask_mod
-#define COMP isc:iec,jsc:jec
 
 !<OVERVIEW>
-! Set up wind mask. Data contains values ranging from 0 to 1.
+! Set up a mask for wind stress term in the momentum equations. Data 
+! contains values ranging from 0 to 1.
 !</OVERVIEW>
 !
 !<DESCRIPTION>
-! Set up wind mask for momentum equations. This module inputs data in the
-! form of a NETCDF file, and stores it in Velocity%wmask array. This mask
-! is multiplied wth the surface forcing (Velocity%smf) in ocean_sbc.F90.
-! Reads information from wind_mask.nc file.
+! Set up a mask for wind stress term in the momentum equations. This 
+! module allows us to run experiments by altering wind forcing 
+! spatially in the momentum equations. Data is taken in the form of a
+! NETCDF (wind_mask.nc) file, and stores it in Velocity%wmask array. 
+! This mask is multiplied wth the surface forcing (Velocity%smf_bgrid) 
+! in ocean_sbc.F90.
 !</DESCRIPTION>
 
 !<NAMELIST NAME="wind_mask_nml">
 !  <DATA NAME="use_this_module" TYPE="logical">
-!  Logical switch to input wind mask from NETCF file.  Default is false. 
+!  Logical switch to input wind mask from NETCF file.  Default is false.
 !  </DATA> 
 !
 !</NAMELIST>
 
-use fms_mod,         only: open_namelist_file, close_file, check_nml_error
-use fms_mod,         only: field_exist, read_data, file_exist
-use mpp_mod,         only: input_nml_file, mpp_error
-use mpp_mod,         only: FATAL, stdout, stdlog
-use mpp_domains_mod, only: mpp_update_domains
+use fms_mod,           only: open_namelist_file, close_file
+use fms_mod,           only: check_nml_error
+use fms_mod,           only: field_exist, read_data, file_exist
+use mpp_mod,           only: input_nml_file, mpp_error
+use mpp_mod,           only: FATAL, stdout, stdlog
+use mpp_domains_mod,   only: mpp_update_domains
 
 use ocean_domains_mod, only: get_local_indices, get_domain_offsets
-use ocean_types_mod,   only: ocean_grid_type, ocean_domain_type, ocean_velocity_type
+use ocean_types_mod,   only: ocean_grid_type, ocean_domain_type
+use ocean_types_mod,   only: ocean_velocity_type
 
 implicit none
 
 #include <ocean_memory.h>
 
-logical :: use_this_module = .false. ! logical switch to input wind mask from NETCF file
+! logical switch to input wind mask from NETCF file
+logical :: use_this_module = .false.
 
-namelist /wind_mask_nml/ use_this_module!, use_nc_file, x_min, x_max, y_,min, y_max
+! In future, add an option to input latitude and longitude ranges 
+! instead of NETCDF file for creating a mask in the model itself.
+
+namelist /wind_mask_nml/ use_this_module!, use_nc_file, x_min, 
+!                                        x_max, y_,min, y_max
 
 public wind_mask_input
 
@@ -55,7 +64,6 @@ subroutine wind_mask_input (Domain, Velocity)
   type(ocean_velocity_type), intent(inout) :: Velocity
 
   character(len=128) :: wind_mask = "INPUT/wind_mask.nc"
-  character(len=128) :: grd_file
 
   integer            :: ioun, io_status, ierr
   integer            :: ioff, joff
@@ -66,6 +74,8 @@ subroutine wind_mask_input (Domain, Velocity)
   joff = 0
   ioff = 0
 
+  if(.not. use_this_module) return
+  
 #ifndef MOM_STATIC_ARRAYS
   call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
 #else
@@ -86,16 +96,16 @@ subroutine wind_mask_input (Domain, Velocity)
   write (stdoutunit,'(/)')
   write (stdoutunit,wind_mask_nml)
   write (stdlogunit,wind_mask_nml)
-
-    ! In future, add an option to input latitude and longitude ranges instead of NETCDF file
-    ! for creating a mask in the model itself.
+  
   if(file_exist(wind_mask)) then
-    call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec,2), Domain%domain2d)
+    call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec,2), &
+      Domain%domain2d)
   else
-    call mpp_error(FATAL, 'wind_mask_mod: file '//trim(wind_mask)//' does not exist')
+    call mpp_error(FATAL, 'wind_mask_mod: file '//trim(wind_mask)//' &
+      does not exist')
   endif
 
-  call mpp_update_domains(Velocity%wmask(:,:,:), Domain%domain2d)
+  call mpp_update_domains(Velocity%wmask, Domain%domain2d)
 
 end subroutine wind_mask_input
 ! </SUBROUTINE> NAME="wind_mask_input"

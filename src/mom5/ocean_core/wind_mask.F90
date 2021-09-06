@@ -105,7 +105,8 @@ subroutine wind_mask_input (Domain, Velocity)
       does not exist')
   endif
 
-  call mpp_update_domains(Velocity%wmask, Domain%domain2d)
+  ! Check about this.
+  !call mpp_update_domains(Velocity%wmask, Domain%domain2d)
 
 end subroutine wind_mask_input
 ! </SUBROUTINE> NAME="wind_mask_input"

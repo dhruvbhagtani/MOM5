@@ -978,7 +978,7 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, '10m wind speed used for kpp Langmuir turbulence', 'm/s',                            &
        missing_value = missing_value, range=(/0.0,1.e3/))
 
-  id_dVsq = register_diag_field('ocean_model','dVsq',Grd%vel_axes_uv(1:3), &
+  id_dVsq = register_diag_field('ocean_model','dVsq',Grd%tracer_axes(1:3), &
        Time%model_time, 'Square of resolved velocity shear', 'm^2/s^2',                     &
        missing_value = missing_value, range=(/0.0,1.e3/))
 

@@ -1132,7 +1132,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
       endif
     endif
 
-    if(id_dVsq > 0) call diagnose_3d_u(Time, Grd, id_dVsq, dVsq(:,:,:)) 
+    if(id_dVsq > 0) call diagnose_3d(Time, Grd, id_dVsq, dVsq(:,:,:)) 
 
 !-----------------------------------------------------------------------
 !     density related quantities

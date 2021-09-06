@@ -1121,7 +1121,7 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:,:,:,:) :: coriolis        _NULL ! rho*dz*velocity Cgrid coriolis tendency (N/m^2)
      real, _ALLOCATABLE, dimension(:,:,:)     :: lap_friction_bt _NULL ! friction just on barotropic (N/m^2)
      real, _ALLOCATABLE, dimension(:,:,:)     :: bih_friction_bt _NULL ! friction just on barotropic (N/m^2)
-     real, _ALLOCATABLE, dimension(:,:,:)     :: wmask           _NULL ! wind mask for momentum equations
+     real, _ALLOCATABLE, dimension(:,:,:)     :: wmask                 ! wind mask for momentum equations
   end type ocean_velocity_type
 
 

@@ -444,7 +444,7 @@ logical :: smooth_ri_kmax_eq_kmu=.false. ! to set details for smoothing the rich
 real    :: shear_instability_flag    = 1.0     ! set to 1.0 if shear_instability=.true.
 
 !Constants for dVsq_param
-real    :: exp_coeff         = -1.0e-4
+real    :: exp_coeff         = -1.0e-2
 real    :: u_coeff_a         = 80.0
 real    :: u_coeff_b         = 1.0
 real    :: z_coeff_a         = 60.0
@@ -1096,9 +1096,11 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
       do k=1,nk
         do j=jsd,jed
           do i=isd,ied
-            dVsq(i,j,k) = exp(exp_coeff * Thickness%depth_zt(i,j,k)/(epsln + sqrt(Velocity%ustar(i,j))))
-            dVsq(i,j,k) = dVsq(i,j,k) * (u_coeff_b*Velocity%ustar(i,j) + u_coeff_a*Velocity%ustar(i,j)**2)
-            dVsq(i,j,k) = dVsq(i,j,k) * (Thickness%depth_zt(i,j,k)/z_coeff_a)
+            !dVsq(i,j,k) = exp(exp_coeff * Thickness%depth_zt(i,j,k)/(epsln + sqrt(Velocity%ustar(i,j))))
+            !dVsq(i,j,k) = dVsq(i,j,k) * (u_coeff_b*Velocity%ustar(i,j) + u_coeff_a*Velocity%ustar(i,j)**2)
+            !dVsq(i,j,k) = dVsq(i,j,k) * (Thickness%depth_zt(i,j,k)/z_coeff_a)
+            dVsq(i,j,k) = 1 - exp(exp_coeff * Thickness%depth_zt(i,j,k)/(epsln + sqrt(Velocity%ustar(i,j))))
+            dVsq(i,j,k) = dVsq(i,j,k) * (u_coeff_a*Velocity%ustar(i,j)**2 + u_coeff_b*Velocity%ustar(i,j)) 
           enddo
         enddo
       enddo

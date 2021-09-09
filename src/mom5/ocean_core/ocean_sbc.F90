@@ -622,7 +622,7 @@ integer :: id_latent_heat_vapor =-1
 integer :: id_latent_heat_fusion=-1
 
 integer :: id_ustar = -1
-!integer :: id_wmask = -1
+integer :: id_wmask = -1
 
 integer :: id_ustokes      =-1
 integer :: id_vstokes      =-1
@@ -1741,9 +1741,9 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
       Time%model_time, 'Friction velocity', 'm/s',                           &
       missing_value = missing_value, range = (/-1.,1./))
 
-  !id_wmask = register_diag_field('ocean_model','wmask', Grd%tracer_axes(1:3),&
-  !    Time%model_time, 'Wind stress mask for momentum equations', 'none',    &
-  !    missing_value = missing_value, range = (/0.,1./))
+  id_wmask = register_diag_field('ocean_model','wmask', Grd%vel_axes_u(1:3),&
+      Time%model_time, 'Wind stress mask for momentum equations', 'none',    &
+      missing_value = missing_value, range = (/-2.,2./))
 
   id_wavlen = register_diag_field('ocean_model','ww3 wavlen', Grd%tracer_axes(1:2),  &
        Time%model_time, 'mean wave length', 'm')
@@ -3539,7 +3539,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   endif
 
-  !call diagnose_3d(Time, Grd, id_wmask, Velocity%wmask(:,:,:))
+  call diagnose_3d_u(Time, Grd, id_wmask, Velocity%wmask(:,:,:))
 
   !--------stokes drift from surface wave model------------------------------- 
   ! smg: place holder until get code updates to Ice_ocean_boundary.

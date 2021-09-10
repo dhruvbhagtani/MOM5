@@ -37,7 +37,7 @@ implicit none
 #include <ocean_memory.h>
 
 ! logical switch to input wind mask from NETCF file
-logical :: use_this_module = .false.
+logical :: use_this_module = .true.
 
 ! In future, add an option to input latitude and longitude ranges 
 ! instead of NETCDF file for creating a mask in the model itself.
@@ -58,7 +58,7 @@ contains
 !
 ! </DESCRIPTION>
 !
-subroutine wind_mask_input (Domain, Velocity)
+subroutine wind_mask_input(Domain, Velocity)
 
   type(ocean_domain_type),   intent(inout) :: Domain
   type(ocean_velocity_type), intent(inout) :: Velocity

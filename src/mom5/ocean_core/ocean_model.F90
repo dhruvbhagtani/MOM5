@@ -1266,7 +1266,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
                               vert_coordinate, vert_coordinate_class, vert_coordinate_type, &
                               use_blobs, introduce_blobs, dtime_t, debug=debug)
     call ocean_operators_init(Grid, Domain, Thickness, horz_grid)
-    call wind_mask_input(Domain, Velocity)
 
     ! initialize prognostic tracers 
     T_prog => ocean_prog_tracer_init(Grid, Thickness, Ocean_options, Domain, Time, Time_steps, &
@@ -1361,6 +1360,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     call ocean_increment_tracer_init(Grid, Domain, Time, T_prog(:))
     call ocean_increment_velocity_init(Grid, Domain, Time)
     call ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options, debug)
+    call wind_mask_input(Domain, Velocity)
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
     call auscom_ice_init(Ocean%domain, Time_steps)
 #else

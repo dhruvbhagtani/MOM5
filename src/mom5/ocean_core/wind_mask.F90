@@ -98,11 +98,10 @@ subroutine wind_mask_input (Domain, Velocity)
   write (stdlogunit,wind_mask_nml)
   
   if(file_exist(wind_mask)) then
-    call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec,2), &
+    call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec,1:2), &
       Domain%domain2d)
   else
-    call mpp_error(FATAL, 'wind_mask_mod: file '//trim(wind_mask)//' &
-      does not exist')
+    call mpp_error(FATAL, 'wind_mask_mod: file '//trim(wind_mask)//' does not exist')
   endif
 
   ! Check about this.

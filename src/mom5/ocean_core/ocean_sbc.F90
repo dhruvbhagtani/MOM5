@@ -3486,24 +3486,22 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   enddo
 
   ! for use in forcing momentum  
-  if(.not. zero_surface_stress_exceptBL) then
-     if(horz_grid == MOM_BGRID) then
-        do n=1,2
-           do j=jsc,jec
-              do i=isc,iec
-                 Velocity%smf(i,j,n) = Velocity%smf_bgrid(i,j,n)
-              enddo
-           enddo
+  if(horz_grid == MOM_BGRID) then
+    do n=1,2
+      do j=jsc,jec
+        do i=isc,iec
+          Velocity%smf(i,j,n) = Velocity%smf_bgrid(i,j,n) * Velocity%wmask(i,j)
         enddo
-     else
-        do n=1,2
-           do j=jsc,jec
-              do i=isc,iec
-                 Velocity%smf(i,j,n) = Velocity%smf_cgrid(i,j,n)
-              enddo
-           enddo
+      enddo
+    enddo
+  else
+    do n=1,2
+      do j=jsc,jec
+        do i=isc,iec
+          Velocity%smf(i,j,n) = Velocity%smf_cgrid(i,j,n) * Velocity%wmask(i,j)
         enddo
-     endif
+      enddo
+    enddo
   endif
 
   ! Calculate surface friction velocity

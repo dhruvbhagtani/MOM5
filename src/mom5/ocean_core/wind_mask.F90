@@ -79,7 +79,7 @@ subroutine wind_mask_input(Domain, Velocity)
 #ifndef MOM_STATIC_ARRAYS
   call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
 
-  allocate (Velocity%wmask(isd:ied,jsd:jed))
+  ! allocate (Velocity%wmask(isd:ied,jsd:jed))
 #else
   call get_domain_offsets(Domain, ioff, joff)
 #endif

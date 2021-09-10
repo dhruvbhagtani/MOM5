@@ -79,7 +79,7 @@ subroutine wind_mask_input (Domain, Velocity)
 #ifndef MOM_STATIC_ARRAYS
   call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
 
-  allocate (Velocity%wmask(isd:ied,jsd:jed,2))
+  allocate (Velocity%wmask(isd:ied,jsd:jed))
 #else
   call get_domain_offsets(Domain, ioff, joff)
 #endif
@@ -100,7 +100,7 @@ subroutine wind_mask_input (Domain, Velocity)
   write (stdlogunit,wind_mask_nml)
   
   if(file_exist(wind_mask)) then
-    call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec,1:2), &
+    call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec), &
       Domain%domain2d)
   else
     call mpp_error(FATAL, 'wind_mask_mod: file '//trim(wind_mask)//' does not exist')

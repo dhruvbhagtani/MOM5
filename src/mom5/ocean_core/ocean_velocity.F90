@@ -414,7 +414,7 @@ subroutine ocean_velocity_init (Grid, Domain, Time, Time_steps, Ocean_options, &
   allocate (Velocity%current_wave_stress(isd:ied,jsd:jed))
   allocate (Velocity%u10(isd:ied,jsd:jed))
   allocate (Velocity%ustar(isd:ied,jsd:jed))
-  allocate (Velocity%wmask(isd:ied,jsd:jed,2))
+  allocate (Velocity%wmask(isd:ied,jsd:jed))
 #endif
 
   Velocity%smf                 = 0.0

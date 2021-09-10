@@ -78,6 +78,8 @@ subroutine wind_mask_input (Domain, Velocity)
   
 #ifndef MOM_STATIC_ARRAYS
   call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
+
+  allocate (Velocity%wmask(isd:ied,jsd:jed,1:2))
 #else
   call get_domain_offsets(Domain, ioff, joff)
 #endif
@@ -105,7 +107,7 @@ subroutine wind_mask_input (Domain, Velocity)
   endif
 
   ! Check about this.
-  call mpp_update_domains(Velocity%wmask, Domain%domain2d)
+  ! call mpp_update_domains(Velocity%wmask, Domain%domain2d)
 
 end subroutine wind_mask_input
 ! </SUBROUTINE> NAME="wind_mask_input"

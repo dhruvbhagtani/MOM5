@@ -3526,7 +3526,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   enddo
 
   ! Zero surface stress after calculating surface friction velocity
-  if (zero_surface_stress_exceptBL) then
+  ! if (zero_surface_stress_exceptBL) then
      do n=1,2
         do j=jsc,jec
            do i=isc,iec
@@ -3535,7 +3535,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
            enddo
         enddo
      enddo
-  endif
+  ! endif
 
   call diagnose_2d_u(Time, Grd, id_wmask, Velocity%wmask(:,:))
 

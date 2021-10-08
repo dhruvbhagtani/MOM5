@@ -1,5 +1,18 @@
 module wind_mask_mod
 
+!
+!<CONTACT EMAIL="dhruv.bhagtani@anu.edu.au"> Dhruv Bhagtani
+!</CONTACT>
+!
+!<REVIEWER EMAIL="andy.hogg@anu.edu.au"> Andrew McC Hogg
+!</REVIEWER>
+!
+!<REVIEWER EMAIL="navid.constantinou@anu.edu.au"> Navid Constantinou
+!</REVIEWER>
+!
+!<REVIEWER EMAIL="r.holmes@sydney.edu.au"> Ryan M Holmes
+!</REVIEWER>
+!
 !<OVERVIEW>
 ! Set up a mask for wind stress term in the momentum equations. Data 
 ! contains values ranging from 0 to 1.
@@ -37,7 +50,7 @@ implicit none
 #include <ocean_memory.h>
 
 ! logical switch to input wind mask from NETCF file
-logical :: use_this_module = .true.
+logical :: use_this_module = .false.
 
 ! In future, add an option to input latitude and longitude ranges 
 ! instead of NETCDF file for creating a mask in the model itself.
@@ -73,8 +86,6 @@ subroutine wind_mask_input(Domain, Velocity)
 
   joff = 0
   ioff = 0
-
-  if(.not. use_this_module) return
   
 #ifndef MOM_STATIC_ARRAYS
   call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
@@ -98,6 +109,8 @@ subroutine wind_mask_input(Domain, Velocity)
   write (stdoutunit,'(/)')
   write (stdoutunit,wind_mask_nml)
   write (stdlogunit,wind_mask_nml)
+
+  if(.not. use_this_module) return
   
   if(file_exist(wind_mask)) then
     call read_data(wind_mask, 'mask', Velocity%wmask(isc:iec,jsc:jec), &

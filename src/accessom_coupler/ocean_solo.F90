@@ -248,6 +248,8 @@ program main
 
   ! Use accessom2 configuration to initial date and runtime
   date_init(:) = accessom2%get_cur_exp_date_array()
+  ! Set default run date to initial date
+  date(:) = date_init(:)
   dt_cpld = accessom2%get_ice_ocean_timestep()
   years = 0
   months = 0
@@ -270,7 +272,7 @@ program main
       read(unit,*) date_restart
       call mpp_close(unit)
   else
-      date_restart = date_init
+      date_restart = date
   endif
 
   call set_calendar_type (calendar_type)

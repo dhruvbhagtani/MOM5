@@ -323,6 +323,11 @@ module ocean_sbc_mod
 !  Logical for debugging to zero all surface stress applied to the ocean,
 !  over-riding any input from Ice_ocean_boundary.  Default is .false.      
 !  </DATA> 
+!  <DATA NAME="zero_surface_stress_exceptBL" TYPE="logical">
+!  Zero all surface stress applied to the ocean except for the input of
+!  turbulent KE through ustar into the boundary layer mixing scheme
+!  through Velocity%ustar. Default is .false.
+!  </DATA>
 !
 !  <DATA NAME="rotate_winds" TYPE="logical">
 !  Set to true when need to rotate the winds onto the ocean model grid.
@@ -531,7 +536,7 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
-use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum
+use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum, diagnose_3d
 use ocean_tracer_util_mod,    only: diagnose_3d_rho
 
 #if defined(CSIRO_BGC)
@@ -615,6 +620,9 @@ integer :: id_tau_y_net=-1
 
 integer :: id_latent_heat_vapor =-1
 integer :: id_latent_heat_fusion=-1
+
+integer :: id_ustar = -1
+integer :: id_wmask = -1
 
 integer :: id_ustokes      =-1
 integer :: id_vstokes      =-1
@@ -906,6 +914,7 @@ logical :: zero_river_fluxes              =.false.
 logical :: convert_river_to_pme           =.false.
 logical :: zero_heat_fluxes               =.false. 
 logical :: zero_surface_stress            =.false.
+logical :: zero_surface_stress_exceptBL   =.false.
 logical :: read_restore_mask              =.false. 
 logical :: restore_mask_gfdl              =.false.
 logical :: land_model_heat_fluxes         =.false. 
@@ -962,7 +971,8 @@ namelist /ocean_sbc_nml/ temp_restore_tscale, salt_restore_tscale, salt_restore_
          salinity_ref, zero_net_salt_restore, zero_net_water_restore, zero_net_water_coupler, zero_net_water_couple_restore, &
          zero_net_salt_correction, zero_net_water_correction,                                                                &
          debug_water_fluxes, zero_water_fluxes, zero_calving_fluxes, zero_pme_fluxes, zero_runoff_fluxes, zero_river_fluxes, &
-         convert_river_to_pme, zero_heat_fluxes, zero_surface_stress, avg_sfc_velocity, avg_sfc_temp_salt_eta,               &
+         convert_river_to_pme, zero_heat_fluxes, zero_surface_stress, zero_surface_stress_exceptBL,                          &
+         avg_sfc_velocity, avg_sfc_temp_salt_eta,                                                                            &
          ice_salt_concentration, ocean_ice_salt_limit, runoff_salinity, runoff_temp_min, read_restore_mask, restore_mask_gfdl,&
          land_model_heat_fluxes, use_full_patm_for_sea_level, max_delta_salinity_restore, do_flux_correction,                &
          salinity_restore_limit_lower, salinity_restore_limit_upper,                                                          &
@@ -1550,6 +1560,11 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
            '==>Warning: Over-riding Ice_ocean_boundary to zero the surface stress: smf=0.0.'
   endif
 
+  if(zero_surface_stress_exceptBL) then
+      write(stdoutunit,*) &
+           '==>Warning: Over-riding Ice_ocean_boundary to zero the surface stress, except for input into BL mixing: smf=0.0.'
+  endif
+
   if(avg_sfc_velocity) then 
       write(stdoutunit,*) &
            '==>If coupling, then avg_sfc_velocity=.true. means will pass averaged ocean velocity to ice model.'
@@ -1729,11 +1744,19 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        missing_value=missing_value,range=(/-10.,10./),                       &
        standard_name='surface stokes drift y-velocity')
 
+  id_ustar = register_diag_field('ocean_model','ustar', Grd%tracer_axes(1:2),&
+       Time%model_time, 'Friction velocity', 'm/s',                           &
+       missing_value = missing_value, range = (/-1.,1./))
+
+  id_wmask = register_diag_field('ocean_model','wmask', Grd%vel_axes_u(1:2),&
+       Time%model_time, 'Wind stress mask for momentum equations', 'none',    &
+       missing_value = missing_value, range = (/-2.,2./))
+
   id_u10 = register_diag_field('ocean_model','u10', Grd%tracer_axes(1:2),&
        Time%model_time, 'Wind speed', 'm/s',                   &
        missing_value=missing_value,range=(/-100.,100./),                       &
        standard_name='Magntiude of wind velocity')
-
+      
   id_wavlen = register_diag_field('ocean_model','ww3 wavlen', Grd%tracer_axes(1:2),  &
        Time%model_time, 'mean wave length', 'm')
   
@@ -3492,27 +3515,27 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   enddo
 
   ! for use in forcing momentum  
-  if(horz_grid == MOM_BGRID) then 
-     do n=1,2
-        do j=jsc,jec
-           do i=isc,iec
-              Velocity%smf(i,j,n) = Velocity%smf_bgrid(i,j,n)
-           enddo
+  if(horz_grid == MOM_BGRID) then
+    do n=1,2
+      do j=jsc,jec
+        do i=isc,iec
+          Velocity%smf(i,j,n) = Velocity%smf_bgrid(i,j,n) * Velocity%wmask(i,j)
         enddo
-     enddo
+      enddo
+    enddo
   else
-     do n=1,2
-        do j=jsc,jec
-           do i=isc,iec
-              Velocity%smf(i,j,n) = Velocity%smf_cgrid(i,j,n)
-           enddo
+    do n=1,2
+      do j=jsc,jec
+        do i=isc,iec
+          Velocity%smf(i,j,n) = Velocity%smf_cgrid(i,j,n) * Velocity%wmask(i,j)
         enddo
-     enddo
-  endif 
+      enddo
+    enddo
+  endif
 
   ! Calculate surface friction velocity
-    do j=jsc,jec
-        do i=isc,iec
+  do j=jsc,jec
+     do i=isc,iec
 
 !         ustar is needed on the "T-grid".  It is assumed that masking of 
 !         smf over land was performed inside of the ocean_sbc module. 
@@ -3530,7 +3553,20 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
           Velocity%ustar(i,j) = sqrt( sqrt(smftu**2 + smftv**2) )
      enddo
   enddo
-  
+
+  ! Zero surface stress after calculating surface friction velocity
+  ! if (zero_surface_stress_exceptBL) then
+     do n=1,2
+        do j=jsc,jec
+           do i=isc,iec
+              Velocity%smf_bgrid(i,j,n) = Velocity%smf_bgrid(i,j,n) * Velocity%wmask(i,j)
+              Velocity%smf_cgrid(i,j,n) = Velocity%smf_cgrid(i,j,n) * Velocity%wmask(i,j)
+           enddo
+        enddo
+     enddo
+  ! endif
+
+  call diagnose_2d_u(Time, Grd, id_wmask, Velocity%wmask(:,:))
 
   !--------stokes drift from surface wave model------------------------------- 
   ! smg: place holder until get code updates to Ice_ocean_boundary.
@@ -5367,7 +5403,9 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_3d_u(Time, Grd, id_vstokes, Velocity%stokes_drift(:,:,:,2))
   call diagnose_2d_u(Time, Grd, id_stokes_depth, Velocity%stokes_depth(:,:))
 
-
+    !--------------------friction velocity----------------------
+  call diagnose_2d(Time, Grd, id_ustar, Velocity%ustar(:,:))
+  
   !--------runoff/calving/river related diagnostics----------------------
   !
   ! temperature of runoff

@@ -585,6 +585,7 @@ module ocean_types_mod
      real, dimension(isd:ied,jsd:jed,nk,2,3) :: coriolis        ! thickness weighted tendency by Cgrid coriolis force (N/m^2)
      real, dimension(isd:ied,jsd:jed,2)      :: lap_friction_bt ! friction just on barotropic velocity (N/m^2)
      real, dimension(isd:ied,jsd:jed,2)      :: bih_friction_bt ! friction just on barotropic velocity (N/m^2)
+     real, dimension(isd:ied,jsd:jed)        :: wmask           ! wind mask for momentum equations
   end type ocean_velocity_type
 
 
@@ -1120,6 +1121,7 @@ module ocean_types_mod
      real, _ALLOCATABLE, dimension(:,:,:,:,:) :: coriolis        _NULL ! rho*dz*velocity Cgrid coriolis tendency (N/m^2)
      real, _ALLOCATABLE, dimension(:,:,:)     :: lap_friction_bt _NULL ! friction just on barotropic (N/m^2)
      real, _ALLOCATABLE, dimension(:,:,:)     :: bih_friction_bt _NULL ! friction just on barotropic (N/m^2)
+     real, _ALLOCATABLE, dimension(:,:)       :: wmask           _NULL ! wind mask for momentum equations
   end type ocean_velocity_type
 
 

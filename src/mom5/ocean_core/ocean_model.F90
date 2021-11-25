@@ -334,6 +334,7 @@ use ocean_xlandmix_mod,           only: ocean_xlandmix_init, xlandmix
 use ocean_drifters_mod,           only: ocean_drifters_init, update_ocean_drifters, ocean_drifters_end
 use wave_types_mod,               only: ocean_wave_type
 use ocean_wave_mod,               only: ocean_wave_init, ocean_wave_end, ocean_wave_model
+use wind_mask_mod,                only: wind_mask_input
 use version_mod,                  only: MOM_COMMIT_HASH
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
@@ -1359,6 +1360,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     call ocean_increment_tracer_init(Grid, Domain, Time, T_prog(:))
     call ocean_increment_velocity_init(Grid, Domain, Time)
     call ocean_wave_init(Grid, Domain, Waves, Time, Time_steps, Ocean_options, debug)
+    call wind_mask_input(Domain, Velocity)
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
     call auscom_ice_init(Ocean%domain, Time_steps)
 #else

@@ -241,6 +241,17 @@ module ocean_vert_kpp_mom4p1_mod
 !  compatibility, we default to smooth_ri_kmax_eq_kmu=.false. 
 !  </DATA> 
 !
+!  <DATA NAME="dVsq_param" TYPE="logical">
+!  When dVsq_param = .true., the resolved velocity shear (dVsq)
+!  is calculated using an analytical parametrisation, instead of using
+!  the models resolved flow. This option is intended to be used with
+!  the option zero_surface_stress_exceptBL in ocean_sbc.F90 in order
+!  to better maintain the mixing in the KPP boundary layer when running
+!  with no surface momentum stresses.
+!  </DATA> 
+!
+
+!
 !</NAMELIST>
 
 use constants_mod,    only: epsln, pi
@@ -261,7 +272,7 @@ use ocean_types_mod,       only: ocean_velocity_type, ocean_density_type
 use ocean_types_mod,       only: ocean_time_type, ocean_time_steps_type, ocean_thickness_type
 use ocean_workspace_mod,   only: wrk1, wrk2, wrk3, wrk4, wrk5
 use ocean_workspace_mod,   only: wrk1_2d, wrk2_2d
-use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum
+use ocean_util_mod,        only: diagnose_2d, diagnose_3d, diagnose_sum, diagnose_3d_u
 use ocean_tracer_util_mod, only: diagnose_3d_rho
 
 implicit none
@@ -425,12 +436,18 @@ logical :: wsfc_combine_runoff_calve = .true.  ! for combining runoff+calving to
 logical :: bvf_from_below    = .false.   ! Use BV-freq. at the cell bottom instead of the cell top (Danabasoglu et al.) 
 logical :: variable_vtc      = .false.   ! Make vtc dependent on BV-freq.
 logical :: use_max_shear     = .false.   ! Use maximum shear instead of 4-point average
+logical :: dVsq_param        = .false.   ! Use analytical parameterization for resolved velocity shear
 logical :: linear_hbl        = .true.    ! To use the linear interpolation as Large etal (1994).
                                          ! Set to .false. for quadratic interpolation as in Danabasoglu et al.
 logical :: calc_visc_on_cgrid=.false.    ! calculate viscosity directly on c-grid
 logical :: smooth_ri_kmax_eq_kmu=.false. ! to set details for smoothing the richardson number
 real    :: shear_instability_flag    = 1.0     ! set to 1.0 if shear_instability=.true.
 
+!Constants for dVsq_param
+real    :: exp_coeff         = -1.0e-2
+real    :: u_coeff_a         = 80.0
+real    :: u_coeff_b         = 1.0
+real    :: z_coeff_a         = 60.0
 
 ! internally set for computing watermass diagnstics
 logical :: compute_watermass_diag = .false. 
@@ -451,6 +468,7 @@ integer  :: id_ws             =-1
 integer  :: id_lang_enh       =-1
 integer  :: id_lang           =-1
 integer  :: id_u10           =-1
+integer  :: id_dVsq           =-1
 
 integer  :: id_neut_rho_kpp_nloc          =-1
 integer  :: id_pot_rho_kpp_nloc           =-1
@@ -507,7 +525,7 @@ logical :: module_is_initialized = .FALSE.
 logical :: debug_this_module     = .FALSE.
 
 namelist /ocean_vert_kpp_mom4p1_nml/ use_this_module, shear_instability, double_diffusion,  &
-                                     diff_cbt_iw, visc_cbu_iw,                              &
+                                     diff_cbt_iw, visc_cbu_iw, dVsq_param,                  &
                                      visc_cbu_limit, diff_cbt_limit,                        &
                                      visc_con_limit, diff_con_limit,                        &
                                      concv, Ricr, non_local_kpp, smooth_blmc,               &
@@ -518,6 +536,7 @@ namelist /ocean_vert_kpp_mom4p1_nml/ use_this_module, shear_instability, double_
                                      use_sbl_bottom_flux, wsfc_combine_runoff_calve,        &
 			             bvf_from_below, variable_vtc, use_max_shear,           &
 			             linear_hbl, calc_visc_on_cgrid, smooth_ri_kmax_eq_kmu, &
+                                     exp_coeff, u_coeff_a, u_coeff_b, z_coeff_a,            &
                                      do_langmuir, do_langmuir_cvmix, calculate_u10
                                  
 
@@ -656,7 +675,12 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
   else
     write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: '// &
     'Use average shear around a tracer cell for diagnostics of hbl.'  
-  endif                               
+  endif
+  if(dVsq_param) then
+    write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Use explicit parameterization for dVsq'
+  else
+    write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Use velocity from momentum equations for dVsq'
+  endif
   if (linear_hbl) then
     write(stdoutunit,'(1x,a)') '==> NOTE from ocean_vert_kpp_mom4p1_mod: Use linear interpolation to find hbl'
   else
@@ -954,6 +978,10 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, '10m wind speed used for kpp Langmuir turbulence', 'm/s',                            &
        missing_value = missing_value, range=(/0.0,1.e3/))
 
+  id_dVsq = register_diag_field('ocean_model','dVsq',Grd%tracer_axes(1:3), &
+       Time%model_time, 'Square of resolved velocity shear', 'm^2/s^2',                     &
+       missing_value = missing_value, range=(/0.0,1.e3/))
+
   call watermass_diag_init(Time,Dens)
 
 
@@ -1063,33 +1091,50 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
 !-----------------------------------------------------------------------
 !     compute vertical difference of velocity squared
 !-----------------------------------------------------------------------
+    if(dVsq_param) then
 
-    do k=1,nk
-      do j=jsd,jed
-        do i=isd,ied
-            wrk2(i,j,k) = (Velocity%u(i,j,1,1,tau) - Velocity%u(i,j,k,1,tau))**2   &
-                        + (Velocity%u(i,j,1,2,tau) - Velocity%u(i,j,k,2,tau))**2
-        enddo
-      enddo
-    enddo
-    if (use_max_shear) then
       do k=1,nk
-        do j=jsc,jec
-          do i=isc,iec
-             dVsq(i,j,k) = max(wrk2(i,j,k),wrk2(i-1,j,k),wrk2(i,j-1,k),wrk2(i-1,j-1,k))
+        do j=jsd,jed
+          do i=isd,ied
+            !dVsq(i,j,k) = exp(exp_coeff * Thickness%depth_zt(i,j,k)/(epsln + sqrt(Velocity%ustar(i,j))))
+            !dVsq(i,j,k) = dVsq(i,j,k) * (u_coeff_b*Velocity%ustar(i,j) + u_coeff_a*Velocity%ustar(i,j)**2)
+            !dVsq(i,j,k) = dVsq(i,j,k) * (Thickness%depth_zt(i,j,k)/z_coeff_a)
+            dVsq(i,j,k) = 1 - exp(exp_coeff * Thickness%depth_zt(i,j,k)/(epsln + sqrt(Velocity%ustar(i,j))))
+            dVsq(i,j,k) = dVsq(i,j,k) * (u_coeff_a*Velocity%ustar(i,j)**2 + u_coeff_b*Velocity%ustar(i,j)) 
           enddo
         enddo
       enddo
+
     else
       do k=1,nk
-        do j=jsc,jec
-          do i=isc,iec
-             active_cells = Grd%umask(i,j,k) + Grd%umask(i-1,j,k) + Grd%umask(i,j-1,k) + Grd%umask(i-1,j-1,k) + epsln
-             dVsq(i,j,k)  = (wrk2(i,j,k) + wrk2(i-1,j,k) + wrk2(i,j-1,k) + wrk2(i-1,j-1,k))/active_cells
+        do j=jsd,jed
+          do i=isd,ied
+              wrk2(i,j,k) = (Velocity%u(i,j,1,1,tau) - Velocity%u(i,j,k,1,tau))**2   &
+                          + (Velocity%u(i,j,1,2,tau) - Velocity%u(i,j,k,2,tau))**2
           enddo
         enddo
       enddo
+      if (use_max_shear) then
+        do k=1,nk
+          do j=jsc,jec
+            do i=isc,iec
+               dVsq(i,j,k) = max(wrk2(i,j,k),wrk2(i-1,j,k),wrk2(i,j-1,k),wrk2(i-1,j-1,k))
+            enddo
+          enddo
+        enddo
+      else
+        do k=1,nk
+          do j=jsc,jec
+            do i=isc,iec
+               active_cells = Grd%umask(i,j,k) + Grd%umask(i-1,j,k) + Grd%umask(i,j-1,k) + Grd%umask(i-1,j-1,k) + epsln
+               dVsq(i,j,k)  = (wrk2(i,j,k) + wrk2(i-1,j,k) + wrk2(i,j-1,k) + wrk2(i-1,j-1,k))/active_cells
+            enddo
+          enddo
+        enddo
+      endif
     endif
+
+    if(id_dVsq > 0) call diagnose_3d(Time, Grd, id_dVsq, dVsq(:,:,:)) 
 
 !-----------------------------------------------------------------------
 !     density related quantities

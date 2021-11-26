@@ -2400,7 +2400,7 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
               Grd%tracer_axes(1:2),                                                 &
               Time%model_time, 'surface heat flux coming through coupler',          &
               'Watts/m^2' ,                                                         &
-              missing_value=missing_value,range=(/-1.e4,1.e4/))
+              missing_value=4*missing_value,range=(/-1.e4,1.e4/))
          id_stf_restore(n) = register_diag_field('ocean_model','sfc_hflux_restore', &
               Grd%tracer_axes(1:2),                                                 &
               Time%model_time, 'surface heat flux from restoring',                  &

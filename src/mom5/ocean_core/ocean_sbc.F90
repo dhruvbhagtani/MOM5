@@ -4278,16 +4278,22 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
 
   ! shortwave flux (W/m^2) into ocean
   if(.not. zero_heat_fluxes) then 
-      swflx(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)                  &
-       *(Ice_ocean_boundary%sw_flux_nir_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) &
-       + Ice_ocean_boundary%sw_flux_nir_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) &
-       + Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) &
-       + Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+    do j = jsc_bnd, jec_bnd
+      do i = isc_bnd, iec_bnd
+        ii = i + i_shift
+        jj = j + j_shift  
+        swflx(ii,jj) = Grd%tmask(ii,jj,1) &
+         *(Ice_ocean_boundary%sw_flux_vis_dir(i,j) &
+         + Ice_ocean_boundary%sw_flux_vis_dif(i,j) &
+         + Ice_ocean_boundary%sw_flux_nir_dir(i,j) &
+         + Ice_ocean_boundary%sw_flux_nir_dif(i,j))
 
-      swflx_vis(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)               &
-        *(Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) &
-       +  Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
-  endif 
+        swflx_vis(ii,jj) = Grd%tmask(ii,jj,1) &
+         *(Ice_ocean_boundary%sw_flux_vis_dir(i,j) &
+         + Ice_ocean_boundary%sw_flux_vis_dif(i,j))
+      enddo
+    enddo
+  endif
 
 
   ! Boundary condition for FAFMIP redistributed tracer is same as for regular temperature field

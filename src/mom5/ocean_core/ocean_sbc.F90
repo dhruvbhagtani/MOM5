@@ -3366,6 +3366,9 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   real, dimension(isd:ied,jsd:jed) :: tmp_patm
 
   real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dif
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dir
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dif
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dir
 
   real, dimension(isd:ied,jsd:jed) :: liquid_precip
   real, dimension(isd:ied,jsd:jed) :: frozen_precip

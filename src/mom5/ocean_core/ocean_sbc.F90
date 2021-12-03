@@ -3341,8 +3341,9 @@ end subroutine ocean_sfc_end
 ! </DESCRIPTION>
 !
 
-subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity, &
-                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm)
+subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity,   &
+                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, &
+                         sw_flux_vis_dif, sw_flux_vis_dir, sw_flux_nir_dif, sw_flux_nir_dir)
 
 
   type(ocean_time_type),          intent(in)    :: Time 
@@ -3358,17 +3359,16 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   real, dimension(isd:,jsd:),     intent(inout) :: runoff
   real, dimension(isd:,jsd:),     intent(inout) :: calving 
   real, dimension(isd:,jsd:),     intent(inout) :: swflx
+  real, dimension(isd:,jsd:),     intent(inout) :: sw_flux_vis_dif
+  real, dimension(isd:,jsd:),     intent(inout) :: sw_flux_vis_dir
+  real, dimension(isd:,jsd:),     intent(inout) :: sw_flux_nir_dif
+  real, dimension(isd:,jsd:),     intent(inout) :: sw_flux_nir_dir
   real, dimension(isd:,jsd:),     intent(inout) :: swflx_vis
   real, dimension(isd:,jsd:),     intent(inout) :: patm
   real, dimension(isd:,jsd:,:),   intent(inout) :: upme
   real, dimension(isd:,jsd:,:),   intent(inout) :: uriver
 
   real, dimension(isd:ied,jsd:jed) :: tmp_patm
-
-  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dif
-  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dir
-  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dif
-  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dir
 
   real, dimension(isd:ied,jsd:jed) :: liquid_precip
   real, dimension(isd:ied,jsd:jed) :: frozen_precip
@@ -5260,7 +5260,8 @@ end subroutine flux_adjust
 subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,     &
                       pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
                       melt, liquid_precip,  frozen_precip, evaporation, sensible, longwave,&
-                      latent, swflx, swflx_vis)
+                      latent, swflx, swflx_vis, sw_flux_vis_dif, sw_flux_vis_dir,          &
+                      sw_flux_nir_dif, sw_flux_nir_dir)
 
   type(ocean_time_type),          intent(in) :: Time 
   type(ocean_velocity_type),      intent(in) :: Velocity
@@ -5285,6 +5286,10 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   real, dimension(isd:,jsd:),     intent(in) :: latent
   real, dimension(isd:,jsd:),     intent(in) :: swflx
   real, dimension(isd:,jsd:),     intent(in) :: swflx_vis
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
 
   real, dimension(isd:ied,jsd:jed) :: tmp_flux
 

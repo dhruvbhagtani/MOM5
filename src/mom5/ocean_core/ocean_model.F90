@@ -1596,7 +1596,8 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
        call mpp_clock_begin(id_sbc)
        call get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode,       &
             T_prog(1:num_prog_tracers), Velocity, pme, melt, river, runoff, calving, &
-            upme, uriver, swflx, swflx_vis, patm)
+            upme, uriver, swflx, swflx_vis, patm, sw_flux_vis_dif, sw_flux_vis_dir,  &
+            sw_flux_nir_dif, sw_flux_nir_dir)
        call mpp_clock_end(id_sbc)
 
        ! compute "flux adjustments" (e.g., surface tracer restoring, flux correction)

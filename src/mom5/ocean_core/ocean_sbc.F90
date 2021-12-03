@@ -3342,8 +3342,7 @@ end subroutine ocean_sfc_end
 !
 
 subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_prog, Velocity,   &
-                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm, &
-                         sw_flux_vis_dif, sw_flux_vis_dir, sw_flux_nir_dif, sw_flux_nir_dir)
+                         pme, melt, river, runoff, calving, upme, uriver, swflx, swflx_vis, patm)
 
 
   type(ocean_time_type),          intent(in)    :: Time 
@@ -3359,10 +3358,6 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   real, dimension(isd:,jsd:),     intent(inout) :: runoff
   real, dimension(isd:,jsd:),     intent(inout) :: calving 
   real, dimension(isd:,jsd:),     intent(inout) :: swflx
-  real, dimension(isd:,jsd:),     intent(inout) :: sw_flux_vis_dif
-  real, dimension(isd:,jsd:),     intent(inout) :: sw_flux_vis_dir
-  real, dimension(isd:,jsd:),     intent(inout) :: sw_flux_nir_dif
-  real, dimension(isd:,jsd:),     intent(inout) :: sw_flux_nir_dir
   real, dimension(isd:,jsd:),     intent(inout) :: swflx_vis
   real, dimension(isd:,jsd:),     intent(inout) :: patm
   real, dimension(isd:,jsd:,:),   intent(inout) :: upme
@@ -3376,6 +3371,11 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   real, dimension(isd:ied,jsd:jed) :: sensible 
   real, dimension(isd:ied,jsd:jed) :: longwave
   real, dimension(isd:ied,jsd:jed) :: latent 
+
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dif
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dir
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dif
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dir
 
   type(time_type)                  :: time_dtime 
 
@@ -3405,6 +3405,12 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   sensible     = 0.0   ! (W/m^2)      positive when enters liquid ocean 
   longwave     = 0.0   ! (W/m^2)      positive when enters liquid ocean 
   latent       = 0.0   ! (W/m^2)      positive when enters liquid ocean  
+
+  sw_flux_vis_dif = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_vis_dir = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_nir_dif = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_nir_dir = 0.0! (W/m^2)      positive when enters liquid ocean
+
 
   ! for diagnostics related to sea level forcing
   do j=jsd,jed
@@ -4245,6 +4251,12 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
        do i = isc_bnd, iec_bnd
           ii = i + i_shift
           jj = j + j_shift  
+
+          sw_flux_vis_dif(ii,jj) = Ice_ocean_boundary%sw_flux_vis_dif(i,j)*Grd%tmask(ii,jj,1)
+          sw_flux_vis_dir(ii,jj) = Ice_ocean_boundary%sw_flux_vis_dir(i,j)*Grd%tmask(ii,jj,1)
+          sw_flux_nir_dif(ii,jj) = Ice_ocean_boundary%sw_flux_nir_dif(i,j)*Grd%tmask(ii,jj,1)
+          sw_flux_nir_dir(ii,jj) = Ice_ocean_boundary%sw_flux_nir_dir(i,j)*Grd%tmask(ii,jj,1)
+
           sensible(ii,jj) = -Ice_ocean_boundary%t_flux(i,j)*Grd%tmask(ii,jj,1)
           longwave(ii,jj) =  Ice_ocean_boundary%lw_flux(i,j)*Grd%tmask(ii,jj,1)
           latent(ii,jj)   =  latent_heat_vapor(ii,jj)*evaporation(ii,jj) &
@@ -4293,17 +4305,6 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
         *(Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) &
        +  Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
 
-      sw_flux_vis_dif(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
-        *Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)
-
-      sw_flux_vis_dir(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
-        *Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)
-
-      sw_flux_nir_dif(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
-        *Ice_ocean_boundary%sw_flux_nir_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)
-
-      sw_flux_nir_dir(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
-        *Ice_ocean_boundary%sw_flux_nir_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)
   endif 
 
 

@@ -390,12 +390,6 @@ private
   real, dimension(isd:ied,jsd:jed)      :: rossby_radius ! rossby radius (m)
   real, dimension(isd:ied,jsd:jed,nk)   :: swheat        ! external shortwave heating source W/m^2
 
-  real, dimension(isd:ied,jsd:jed)      :: sw_flux_vis_dif    ! visible diffuse short wave radiation flux (W/m^2)
-  real, dimension(isd:ied,jsd:jed)      :: sw_flux_vis_dir    ! visible direct short wave radiation flux (W/m^2)
-  real, dimension(isd:ied,jsd:jed)      :: sw_flux_nir_dif    ! near-infrared diffuse short wave radiation flux (W/m^2)
-  real, dimension(isd:ied,jsd:jed)      :: sw_flux_nir_dir    ! near-infrared direct short wave radiation flux (W/m^2)
-  
-
 #else
 
   real, pointer, dimension(:,:,:,:) :: diff_cbt            =>NULL() ! diffusion coefficient at base of tracer cells (m^2/sec): 
@@ -422,11 +416,6 @@ private
   real, pointer, dimension(:,:)     :: rossby_radius       =>NULL() ! rossby radius (m) 
   real, pointer, dimension(:,:,:)   :: swheat              =>NULL() ! external shortwave heating source W/m^2
 
-  real, pointer, dimension(:,:)     :: sw_flux_vis_dif     =>NULL() ! visible diffuse short wave radiation flux (W/m^2)
-  real, pointer, dimension(:,:)     :: sw_flux_vis_dir     =>NULL() ! visible direct short wave radiation flux (W/m^2)
-  real, pointer, dimension(:,:)     :: sw_flux_nir_dif     =>NULL() ! near-infrared diffuse short wave radiation flux (W/m^2)
-  real, pointer, dimension(:,:)     :: sw_flux_nir_dir     =>NULL() ! near-infrared direct short wave radiation flux (W/m^2)
-  
 #endif
 
   ! for running Time%init=.true. yet using a restart file 
@@ -1218,10 +1207,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     allocate(patm(isd:ied,jsd:jed))
     allocate(swflx(isd:ied,jsd:jed))    
     allocate(swflx_vis(isd:ied,jsd:jed))  
-    allocate(sw_flux_vis_dif(isd:ied,jsd:jed))    
-    allocate(sw_flux_vis_dir(isd:ied,jsd:jed))    
-    allocate(sw_flux_nir_dif(isd:ied,jsd:jed))    
-    allocate(sw_flux_nir_dir(isd:ied,jsd:jed))      
     allocate(sw_frac_zt(isd:ied,jsd:jed,nk))    
     allocate(opacity(isd:ied,jsd:jed,nk))    
     allocate(surf_blthick(isd:ied,jsd:jed))    
@@ -1261,10 +1246,6 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
     patm                        = 0.0
     swflx                       = 0.0    
     swflx_vis                   = 0.0
-    sw_flux_vis_dif             = 0.0
-    sw_flux_vis_dir             = 0.0
-    sw_flux_nir_dif             = 0.0
-    sw_flux_nir_dir             = 0.0
     sw_frac_zt                  = 0.0    
     opacity                     = 0.0    
     surf_blthick                = 0.0
@@ -1615,8 +1596,7 @@ subroutine ocean_model_init(Ocean, Ocean_state, Time_init, Time_in, &
        call mpp_clock_begin(id_sbc)
        call get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode,       &
             T_prog(1:num_prog_tracers), Velocity, pme, melt, river, runoff, calving, &
-            upme, uriver, swflx, swflx_vis, patm, sw_flux_vis_dif, sw_flux_vis_dir,  &
-            sw_flux_nir_dif, sw_flux_nir_dir)
+            upme, uriver, swflx, swflx_vis, patm)
        call mpp_clock_end(id_sbc)
 
        ! compute "flux adjustments" (e.g., surface tracer restoring, flux correction)

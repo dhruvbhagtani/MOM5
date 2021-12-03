@@ -5288,9 +5288,9 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   real, dimension(isd:,jsd:),     intent(in) :: swflx
   real, dimension(isd:,jsd:),     intent(in) :: swflx_vis
   real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
-  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
-  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
-  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dir
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_nir_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_nir_dir
 
   real, dimension(isd:ied,jsd:jed) :: tmp_flux
 

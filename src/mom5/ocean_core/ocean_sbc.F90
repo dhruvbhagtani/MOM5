@@ -3365,6 +3365,8 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
 
   real, dimension(isd:ied,jsd:jed) :: tmp_patm
 
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dif
+
   real, dimension(isd:ied,jsd:jed) :: liquid_precip
   real, dimension(isd:ied,jsd:jed) :: frozen_precip
   real, dimension(isd:ied,jsd:jed) :: evaporation
@@ -4287,6 +4289,18 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
       swflx_vis(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)               &
         *(Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) &
        +  Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_vis_dif(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)
+
+      sw_flux_vis_dir(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)
+
+      sw_flux_nir_dif(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *Ice_ocean_boundary%sw_flux_nir_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)
+
+      sw_flux_nir_dir(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *Ice_ocean_boundary%sw_flux_nir_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)
   endif 
 
 
@@ -5684,10 +5698,10 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   call diagnose_2d(Time, Grd, id_swflx, swflx(:,:))
 
   ! visible and near-infrared components of shortwave radiation (direct and diffuse)
-  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif, Ice_ocean_boundary%sw_flux_vis_dif(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir, Ice_ocean_boundary%sw_flux_vis_dir(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif, Ice_ocean_boundary%sw_flux_nir_dif(:,:))
-  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir, Ice_ocean_boundary%sw_flux_nir_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif, sw_flux_vis_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir, sw_flux_vis_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif, sw_flux_nir_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir, sw_flux_nir_dir(:,:))
 
   ! total shortwave heat transport (Watts)
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx, swflx, 1e-15)

@@ -125,6 +125,8 @@ program main
   use ocean_model_mod,          only: ocean_model_restart, ocean_public_type, ocean_state_type
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
+  use ocean_domains_mod,        only: get_local_indices
+
   implicit none
 
   type (ocean_public_type)               :: Ocean_sfc          
@@ -388,6 +390,10 @@ ierr = check_nml_error(io_status,'ocean_solo_nml')
 
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
 
+     if(hflux_switch)
+        call hflux_offset(Ice_ocean_boundary)
+     endif
+
      call mpp_clock_end(override_clock)
 
      call external_coupler_sbc_before(Ice_ocean_boundary, Ocean_sfc, nc, dt_cpld )
@@ -508,6 +514,55 @@ end subroutine ocean_solo_restart
             
   end subroutine ice_ocn_bnd_from_data
 
+
+!====================================================================
+! offsetting values for heat fluxes when hflux_switch = True 
+  subroutine hflux_offset(x, Domain)
+
+      type (ice_ocean_boundary_type) :: x
+
+      type(ocean_domain_type),   intent(inout) :: Domain
+
+      character(len=128) :: heat_mask = "INPUT/heat_mask.nc"
+
+      integer            :: ioun, io_status, ierr
+      integer            :: ioff, joff
+
+      integer :: stdoutunit,stdlogunit 
+      stdoutunit=stdout();stdlogunit=stdlog() 
+
+      joff = 0
+      ioff = 0
+  
+      #ifndef MOM_STATIC_ARRAYS
+         call get_local_indices(Domain, isd, ied, jsd, jed, isc, iec, jsc, jec)
+
+      ! allocate (Velocity%wmask(isd:ied,jsd:jed))
+      #else
+         call get_domain_offsets(Domain, ioff, joff)
+      #endif
+
+      if(file_exist(heat_mask)) then
+         call read_data(heat_mask, 'mask', hmask(isc:iec,jsc:jec), &
+         Domain%domain2d)
+      else
+         return
+      endif
+
+      do j = jsc, jec
+         do i = isc, iec
+            x%sw_flux_vis_dif(i,j) = x%sw_flux_vis_dif(i,j) * hmask(i,j)
+            x%sw_flux_vis_dir(i,j) = x%sw_flux_vis_dir(i,j) * hmask(i,j)
+            x%sw_flux_nir_dif(i,j) = x%sw_flux_nir_dif(i,j) * hmask(i,j)
+            x%sw_flux_nir_dir(i,j) = x%sw_flux_nir_dir(i,j) * hmask(i,j)
+
+            x%t_flux(i,j)          = x%t_flux(i,j)          * hmask(i,j)
+            x%q_flux(i,j)          = x%q_flux(i,j)          * hmask(i,j)
+            x%lw_flux(i,j)         = x%lw_flux(i,j)         * hmask(i,j)
+         end do
+      end do
+
+  end subroutine ice_ocn_bnd_from_data
 
 !-----------------------------------------------------------------------------------------
 ! 

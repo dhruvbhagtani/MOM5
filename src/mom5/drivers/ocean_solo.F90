@@ -521,7 +521,7 @@ end subroutine ocean_solo_restart
 
       type (ice_ocean_boundary_type) :: x
 
-      type(ocean_domain_type),   intent(inout) :: Domain
+      type(ocean_domain_type) :: Domain
 
       character(len=128) :: heat_mask = "INPUT/heat_mask.nc"
 

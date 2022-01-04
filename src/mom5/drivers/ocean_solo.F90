@@ -126,6 +126,7 @@ program main
   use ocean_types_mod,          only: ice_ocean_boundary_type
 
   use ocean_domains_mod,        only: get_local_indices
+  use ocean_types_mod,          only: ocean_grid_type, ocean_domain_type, ocean_public_type
 
   implicit none
 

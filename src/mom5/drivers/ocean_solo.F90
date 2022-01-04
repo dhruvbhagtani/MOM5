@@ -156,6 +156,8 @@ program main
   integer :: date_restart(6)
   integer :: years=0, months=0, days=0, hours=0, minutes=0, seconds=0
 
+  logical :: hflux_switch = .false.
+
   integer :: isc,iec,jsc,jec
   integer :: unit, io_status, ierr
 
@@ -180,7 +182,7 @@ program main
   logical :: external_initialization
 
   namelist /ocean_solo_nml/ date_init, calendar, months, days, hours, minutes, seconds, dt_cpld, &
-                            n_mask, layout_mask, mask_list, restart_interval
+                            n_mask, layout_mask, mask_list, restart_interval, hflux_switch
 
   call external_coupler_mpi_init(mpi_comm_mom, external_initialization)
 
@@ -391,7 +393,7 @@ ierr = check_nml_error(io_status,'ocean_solo_nml')
 
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
 
-     if(hflux_switch)
+     if(hflux_switch) then
         call hflux_offset(Ice_ocean_boundary, domain2d)
      endif
 

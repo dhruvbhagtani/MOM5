@@ -391,7 +391,7 @@ ierr = check_nml_error(io_status,'ocean_solo_nml')
      call ice_ocn_bnd_from_data(Ice_ocean_boundary)
 
      if(hflux_switch)
-        call hflux_offset(Ice_ocean_boundary)
+        call hflux_offset(Ice_ocean_boundary, domain2d)
      endif
 
      call mpp_clock_end(override_clock)

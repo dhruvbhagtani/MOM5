@@ -536,11 +536,11 @@ use ocean_types_mod,          only: ocean_external_mode_type, ocean_velocity_typ
 use ocean_types_mod,          only: ice_ocean_boundary_type, ocean_density_type
 use ocean_types_mod,          only: ocean_public_type
 use ocean_workspace_mod,      only: wrk1_2d, wrk2_2d, wrk3_2d, wrk1
-use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum
+use ocean_util_mod,           only: diagnose_2d, diagnose_2d_u, diagnose_3d_u, diagnose_sum, diagnose_3d
 use ocean_tracer_util_mod,    only: diagnose_3d_rho
 
 #if defined(CSIRO_BGC)
-use csiro_bgc_mod,            only: csiro_bgc_virtual_fluxes, do_csiro_bgc
+use csiro_bgc_mod,            only: csiro_bgc_virtual_fluxes, do_csiro_bgc,ind_no3,ind_phy
 #endif
 implicit none
 
@@ -622,10 +622,13 @@ integer :: id_latent_heat_vapor =-1
 integer :: id_latent_heat_fusion=-1
 
 integer :: id_ustar = -1
+integer :: id_wmask = -1
 
 integer :: id_ustokes      =-1
 integer :: id_vstokes      =-1
 integer :: id_stokes_depth =-1
+
+integer :: id_u10 = -1
 
 integer :: id_ustoke          =-1
 integer :: id_vstoke          =-1
@@ -649,6 +652,11 @@ integer :: id_ekman_we       =-1
 integer :: id_ekman_heat     =-1
 integer :: id_swflx          =-1
 integer :: id_swflx_vis      =-1
+
+integer :: id_sw_flux_vis_dir = -1
+integer :: id_sw_flux_vis_dif = -1
+integer :: id_sw_flux_nir_dir = -1
+integer :: id_sw_flux_nir_dif = -1
 
 integer :: id_lw_heat            =-1
 integer :: id_sens_heat          =-1
@@ -688,7 +696,10 @@ integer :: id_liceht        =-1
 integer :: id_mh_flux            =-1
 integer :: id_atm_co2            =-1
 #endif
-
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+integer :: id_iof_nit               =-1
+integer :: id_iof_alg               =-1
+#endif
 
 ! ids for sea level forcing fields 
 real    :: cellarea_r
@@ -828,7 +839,7 @@ real, allocatable, dimension(:,:) :: betasfc2      ! potrho surface saline contr
 #endif
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
 real, allocatable, dimension(:,:,:) :: sslope
-real, allocatable, dimension(:,:) :: aice
+real, allocatable, dimension(:,:) :: aice, iof_nit, iof_alg
 #endif
 #if defined(ACCESS_CM)
 real, allocatable, dimension(:,:) :: co2flux
@@ -1125,12 +1136,18 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   allocate ( Ocean_sfc%gradient (isc_bnd:iec_bnd,jsc_bnd:jec_bnd,2))
   allocate ( sslope(isc:iec, jsc:jec, 2) )
   allocate ( aice(isd:ied, jsd:jed) )
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  allocate ( iof_nit(isd:ied, jsd:jed) )
+  allocate ( iof_alg(isd:ied, jsd:jed) )
+  allocate ( Ocean_sfc%n_surf (isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+  allocate ( Ocean_sfc%alg_surf (isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+#endif
 #if defined(ACCESS_CM)
   allocate ( Ocean_sfc%co2    (isc_bnd:iec_bnd,jsc_bnd:jec_bnd), &
              Ocean_sfc%co2flux (isc_bnd:iec_bnd,jsc_bnd:jec_bnd)) 
   allocate ( co2flux(isd:ied,jsd:jed),ocn_co2(isd:ied,jsd:jed))
   allocate ( atm_co2(isd:ied,jsd:jed))
-#endif
 #endif
 
   Ocean_sfc%t_surf  = 0.0  ! time averaged sst (Kelvin) passed to atmosphere/ice model
@@ -1144,6 +1161,12 @@ subroutine ocean_sbc_init(Grid, Domain, Time, T_prog, T_diag, &
   Ocean_sfc%gradient  = 0.0  ! gradint of ssl passed to Ice model
   sslope = 0.0
   aice = 0.0
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  iof_nit = 0.0
+  iof_alg = 0.0
+  Ocean_sfc%n_surf  = 0.0 
+  Ocean_sfc%alg_surf  = 0.0 
 #endif
 #if defined(ACCESS_CM)
   Ocean_sfc%co2       = 0.0 
@@ -1737,9 +1760,18 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        standard_name='surface stokes drift y-velocity')
 
   id_ustar = register_diag_field('ocean_model','ustar', Grd%tracer_axes(1:2),&
-      Time%model_time, 'Friction velocity', 'm/s',                           &
-      missing_value = missing_value, range = (/-1.,1./))
+       Time%model_time, 'Friction velocity', 'm/s',                           &
+       missing_value = missing_value, range = (/-1.,1./))
 
+  id_wmask = register_diag_field('ocean_model','wmask', Grd%vel_axes_u(1:2),&
+       Time%model_time, 'Wind stress mask for momentum equations', 'none',    &
+       missing_value = missing_value, range = (/-2.,2./))
+
+  id_u10 = register_diag_field('ocean_model','u10', Grd%tracer_axes(1:2),&
+       Time%model_time, 'Wind speed', 'm/s',                   &
+       missing_value=missing_value,range=(/-100.,100./),                       &
+       standard_name='Magntiude of wind velocity')
+      
   id_wavlen = register_diag_field('ocean_model','ww3 wavlen', Grd%tracer_axes(1:2),  &
        Time%model_time, 'mean wave length', 'm')
   
@@ -1940,6 +1972,22 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        Time%model_time, 'visible shortwave into ocean (>0 heats ocean)', 'W/m^2' ,   &
        missing_value=missing_value,range=(/-1.e10,1.e10/))   
 
+  id_sw_flux_vis_dir = register_diag_field('ocean_model','sw_flux_vis_dir', Grd%tracer_axes(1:2),&
+      Time%model_time, 'direct visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2' ,  &
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_vis_dif = register_diag_field('ocean_model','sw_flux_vis_dif', Grd%tracer_axes(1:2),&
+      Time%model_time, 'diffuse visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2' , &
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_nir_dir = register_diag_field('ocean_model','sw_flux_nir_dir', Grd%tracer_axes(1:2),&
+      Time%model_time, 'direct near-infrared visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2',&
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_nir_dif = register_diag_field('ocean_model','sw_flux_nir_dif', Grd%tracer_axes(1:2),&
+      Time%model_time, 'diffuse near-infrared visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2',&
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
   id_evap_heat = register_diag_field('ocean_model','evap_heat', Grd%tracer_axes(1:2),&
        Time%model_time, 'latent heat flux into ocean (<0 cools ocean)', 'W/m^2',     &
        missing_value=missing_value,range=(/-1e10,1e10/),                             &
@@ -2010,6 +2058,16 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        Time%model_time, 'fraction of surface area covered with ice', 'm^2/m^2' ,  &
        missing_value=missing_value,range=(/-1.e1,1.e1/),                      &
        standard_name='areal_ice_concentration' )
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  id_iof_nit = register_diag_field('ocean_model','iof_nit', Grd%tracer_axes(1:2),&
+       Time%model_time, 'ice-ocean flux of nitrate', 'mmol/m^2/s^1' ,  &
+       missing_value=missing_value,range=(/-1.e1,1.e1/),                      &
+       standard_name='ice_ocean_nitrate_flux' )
+  id_iof_alg = register_diag_field('ocean_model','iof_alg', Grd%tracer_axes(1:2),&
+       Time%model_time, 'ice-ocean flux of algae', 'mmol/m^2/s^1' ,  &
+       missing_value=missing_value,range=(/-1.e1,1.e1/),                      &
+       standard_name='ice_ocean_algal_flux' )
+#endif
   id_wnd = register_diag_field('ocean_model','wnd', Grd%tracer_axes(1:2),&
        Time%model_time, 'Wind speed', 'm/s' ,  &
        missing_value=missing_value,range=(/-1.e3,1.e3/),                      &
@@ -2837,6 +2895,15 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
 #endif
   end where
 
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  if (ind_no3 > 0) then
+   where (Grd%tmask(isc:iec,jsc:jec,1) == 1.0)
+      Ocean_sfc%n_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = T_prog(ind_no3)%field(isc:iec,jsc:jec,1,taup1)
+      Ocean_sfc%alg_surf(isc_bnd:iec_bnd,jsc_bnd:jec_bnd)  = T_prog(ind_phy)%field(isc:iec,jsc:jec,1,taup1)
+   end where
+  end if
+#endif
+
   ! when enabled, use FAFMIP redistributed heat tracer for sst
   if(index_redist_heat > 0) then
     write(stdoutunit,*) &
@@ -2869,6 +2936,10 @@ subroutine initialize_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean
   id_field = register_restart_field(Sfc_restart, filename, 'v_surf', Ocean_sfc%v_surf,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'sea_lev',Ocean_sfc%sea_lev,Ocean_sfc%Domain)
   id_field = register_restart_field(Sfc_restart, filename, 'frazil', Ocean_sfc%frazil,Ocean_sfc%Domain)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  id_field = register_restart_field(Sfc_restart, filename, 'n_surf', Ocean_sfc%n_surf,Ocean_sfc%Domain)
+  id_field = register_restart_field(Sfc_restart, filename, 'alg_surf', Ocean_sfc%alg_surf,Ocean_sfc%Domain)
+#endif
 #if defined(ACCESS_CM)
 !RASF Make these optional so we don't break existing runs.
   id_field = register_restart_field(Sfc_restart, filename, 'co2flux',Ocean_sfc%co2flux,Ocean_sfc%Domain, mandatory=.false.)
@@ -2959,6 +3030,12 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
             Ocean_sfc%gradient(i,j,:) = Ocean_sfc%gradient(i,j,:) + sslope(ii,jj,:)  
 #endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+            if (ind_no3 > 0) then
+             Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)  + T_prog(ind_no3)%field(ii,jj,1,taup1)
+             Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)  + T_prog(ind_phy)%field(ii,jj,1,taup1)
+            end if
+#endif
 #if defined(ACCESS_CM)
             Ocean_sfc%co2flux(i,j) = Ocean_sfc%co2flux(i,j) + co2flux(ii,jj)
             Ocean_sfc%co2(i,j)     = Ocean_sfc%co2(i,j) + ocn_co2(ii,jj)
@@ -2999,6 +3076,12 @@ subroutine sum_ocean_sfc(Time, Thickness, T_prog, T_diag, Dens, Velocity, Ocean_
             Ocean_sfc%v_surf(i,j)  = Ocean_sfc%v_surf(i,j)  + Grd%umask(ii,jj,1)*onehalf &
                                      *(Velocity%u(ii,jj,1,2,taup1) + Velocity%u(ii,jj+1,1,2,taup1))
             Ocean_sfc%sea_lev(i,j) = Ocean_sfc%sea_lev(i,j) + Thickness%sea_lev(ii,jj)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+            if (ind_no3 > 0) then
+             Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)  + T_prog(ind_no3)%field(ii,jj,1,taup1)
+             Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)  + T_prog(ind_phy)%field(ii,jj,1,taup1)
+            end if
+#endif         
          enddo
       enddo
 
@@ -3061,6 +3144,10 @@ subroutine zero_ocean_sfc(Ocean_sfc)
         Ocean_sfc%frazil(i,j) = 0.0
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
         Ocean_sfc%gradient(i,j,:)= 0.0
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+        Ocean_sfc%n_surf(i,j)= 0.0
+        Ocean_sfc%alg_surf(i,j)= 0.0
 #endif
 #if defined(ACCESS_CM)
         Ocean_sfc%co2flux(i,j) = 0.0
@@ -3142,6 +3229,10 @@ subroutine avg_ocean_sfc(Time, Thickness, T_prog, T_diag, Velocity, Ocean_sfc)
            Ocean_sfc%sea_lev(i,j) = Ocean_sfc%sea_lev(i,j)*divid 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
            Ocean_sfc%gradient(i,j,:) = Ocean_sfc%gradient(i,j,:)*divid
+#endif
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+           Ocean_sfc%n_surf(i,j)  = Ocean_sfc%n_surf(i,j)*divid
+           Ocean_sfc%alg_surf(i,j)  = Ocean_sfc%alg_surf(i,j)*divid
 #endif
 #if defined(ACCESS_CM)
            Ocean_sfc%co2flux(i,j) = Ocean_sfc%co2flux(i,j)*divid
@@ -3339,6 +3430,11 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   real, dimension(isd:ied,jsd:jed) :: longwave
   real, dimension(isd:ied,jsd:jed) :: latent 
 
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dif
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dir
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dif
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dir
+
   type(time_type)                  :: time_dtime 
 
   real    :: tmp_x, tmp_y
@@ -3368,6 +3464,11 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   longwave     = 0.0   ! (W/m^2)      positive when enters liquid ocean 
   latent       = 0.0   ! (W/m^2)      positive when enters liquid ocean  
 
+  sw_flux_vis_dif = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_vis_dir = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_nir_dif = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_nir_dir = 0.0! (W/m^2)      positive when enters liquid ocean
+
   ! for diagnostics related to sea level forcing
   do j=jsd,jed
      do i=isd,ied
@@ -3390,6 +3491,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
      enddo
   enddo
   call mpp_update_domains(Velocity%u10(:,:)  , Dom%domain2d)
+  call diagnose_2d(Time, Grd, id_u10, Velocity%u10(:,:))
 
   !------- Calculate Langmuir turbulence enhancement and stokes drift if do_langmuir is true ------------------------
     if ( do_langmuir ) then 
@@ -3481,24 +3583,22 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   enddo
 
   ! for use in forcing momentum  
-  if(.not. zero_surface_stress_exceptBL) then
-     if(horz_grid == MOM_BGRID) then
-        do n=1,2
-           do j=jsc,jec
-              do i=isc,iec
-                 Velocity%smf(i,j,n) = Velocity%smf_bgrid(i,j,n)
-              enddo
-           enddo
+  if(horz_grid == MOM_BGRID) then
+    do n=1,2
+      do j=jsc,jec
+        do i=isc,iec
+          Velocity%smf(i,j,n) = Velocity%smf_bgrid(i,j,n) * Velocity%wmask(i,j)
         enddo
-     else
-        do n=1,2
-           do j=jsc,jec
-              do i=isc,iec
-                 Velocity%smf(i,j,n) = Velocity%smf_cgrid(i,j,n)
-              enddo
-           enddo
+      enddo
+    enddo
+  else
+    do n=1,2
+      do j=jsc,jec
+        do i=isc,iec
+          Velocity%smf(i,j,n) = Velocity%smf_cgrid(i,j,n) * Velocity%wmask(i,j)
         enddo
-     endif
+      enddo
+    enddo
   endif
 
   ! Calculate surface friction velocity
@@ -3523,16 +3623,18 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   enddo
 
   ! Zero surface stress after calculating surface friction velocity
-  if (zero_surface_stress_exceptBL) then
+  ! if (zero_surface_stress_exceptBL) then
      do n=1,2
         do j=jsc,jec
            do i=isc,iec
-              Velocity%smf_bgrid(i,j,n) = 0.0
-              Velocity%smf_cgrid(i,j,n) = 0.0
+              Velocity%smf_bgrid(i,j,n) = Velocity%smf_bgrid(i,j,n) * Velocity%wmask(i,j)
+              Velocity%smf_cgrid(i,j,n) = Velocity%smf_cgrid(i,j,n) * Velocity%wmask(i,j)
            enddo
         enddo
      enddo
-  endif
+  ! endif
+
+  call diagnose_2d_u(Time, Grd, id_wmask, Velocity%wmask(:,:))
 
   !--------stokes drift from surface wave model------------------------------- 
   ! smg: place holder until get code updates to Ice_ocean_boundary.
@@ -4253,6 +4355,18 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
       swflx_vis(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)               &
         *(Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) &
        +  Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_vis_dif(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *(Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_vis_dir(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *(Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_nir_dif(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *(Ice_ocean_boundary%sw_flux_nir_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_nir_dir(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *(Ice_ocean_boundary%sw_flux_nir_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
   endif 
 
 
@@ -4382,6 +4496,10 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
         ii = i + i_shift
         jj = j + j_shift
         aice(ii,jj) = Ice_ocean_boundary%aice(i,j)*Grd%tmask(ii,jj,1)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+        iof_nit(ii,jj) = Ice_ocean_boundary%iof_nit(i,j)*Grd%tmask(ii,jj,1)
+        iof_alg(ii,jj) = Ice_ocean_boundary%iof_alg(i,j)*Grd%tmask(ii,jj,1)
+#endif
      enddo
   enddo
 #endif
@@ -4396,7 +4514,7 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
 #elif defined(ACCESS_OM) && defined(CSIRO_BGC)
 ! Do not pass co2flux, ocn_co2 or atm_co2
   call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
-                     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,aice=aice, wnd=Velocity%u10, &
+                     isc_bnd, iec_bnd, jsc_bnd, jec_bnd,aice=aice, iof_nit=iof_nit, iof_alg=iof_alg, wnd=Velocity%u10, &
                      use_waterflux=use_waterflux, salt_restore_as_salt_flux=salt_restore_as_salt_flux)
 #else 
   call ocean_tpm_sbc(Dom, Grd, T_prog(:), Time, Ice_ocean_boundary%fluxes, runoff, &
@@ -4409,7 +4527,8 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   call ocean_sbc_diag (Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,        &
                       pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
                       melt, liquid_precip, frozen_precip, evaporation, sensible, longwave, &
-                      latent, swflx, swflx_vis)
+                      latent, swflx, swflx_vis, sw_flux_vis_dif, sw_flux_vis_dir,          &
+                      sw_flux_nir_dif, sw_flux_nir_dir)
 
 end subroutine get_ocean_sbc
 ! </SUBROUTINE> NAME="get_ocean_sbc"
@@ -5209,7 +5328,8 @@ end subroutine flux_adjust
 subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,     &
                       pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
                       melt, liquid_precip,  frozen_precip, evaporation, sensible, longwave,&
-                      latent, swflx, swflx_vis)
+                      latent, swflx, swflx_vis, sw_flux_vis_dif, sw_flux_vis_dir,          &
+                      sw_flux_nir_dif, sw_flux_nir_dir)
 
   type(ocean_time_type),          intent(in) :: Time 
   type(ocean_velocity_type),      intent(in) :: Velocity
@@ -5234,6 +5354,10 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   real, dimension(isd:,jsd:),     intent(in) :: latent
   real, dimension(isd:,jsd:),     intent(in) :: swflx
   real, dimension(isd:,jsd:),     intent(in) :: swflx_vis
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dir
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_nir_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_nir_dir
 
   real, dimension(isd:ied,jsd:jed) :: tmp_flux
 
@@ -5648,6 +5772,13 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! shortwave flux (W/m2)
   call diagnose_2d(Time, Grd, id_swflx, swflx(:,:))
+
+  ! visible and near-infrared components of shortwave radiation (direct and diffuse)
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif, sw_flux_vis_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir, sw_flux_vis_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif, sw_flux_nir_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir, sw_flux_nir_dir(:,:))
+  
   ! total shortwave heat transport (Watts)
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx, swflx, 1e-15)
   ! swflx impacts on water mass transformation in neutral density classes 
@@ -6055,6 +6186,14 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   if (id_aice > 0) used = send_data(id_aice, aice(:,:),    &
                  Time%model_time, rmask=Grd%tmask(:,:,1),  &
                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+#if defined(ACCESS_OM) && defined(CSIRO_BGC)
+  if (id_iof_nit > 0) used = send_data(id_iof_nit, iof_nit(:,:),    &
+                 Time%model_time, rmask=Grd%tmask(:,:,1),  &
+                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+  if (id_iof_alg > 0) used = send_data(id_iof_alg, iof_alg(:,:),    &
+                 Time%model_time, rmask=Grd%tmask(:,:,1),  &
+                 is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
+#endif
   if (id_wnd > 0) used = send_data(id_wnd, Velocity%u10(:,:),    &
                  Time%model_time, rmask=Grd%tmask(:,:,1),  &
                  is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)

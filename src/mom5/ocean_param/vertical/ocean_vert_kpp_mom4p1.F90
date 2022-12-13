@@ -444,7 +444,7 @@ logical :: smooth_ri_kmax_eq_kmu=.false. ! to set details for smoothing the rich
 real    :: shear_instability_flag    = 1.0     ! set to 1.0 if shear_instability=.true.
 
 !Constants for dVsq_param
-real    :: exp_coeff         = -1.0e-4
+real    :: exp_coeff         = -1.0e-2
 real    :: u_coeff_a         = 80.0
 real    :: u_coeff_b         = 1.0
 real    :: z_coeff_a         = 60.0
@@ -978,7 +978,7 @@ ierr = check_nml_error(io_status,'ocean_vert_kpp_mom4p1_nml')
        Time%model_time, '10m wind speed used for kpp Langmuir turbulence', 'm/s',                            &
        missing_value = missing_value, range=(/0.0,1.e3/))
 
-  id_dVsq = register_diag_field('ocean_model','dVsq',Grd%vel_axes_uv(1:3), &
+  id_dVsq = register_diag_field('ocean_model','dVsq',Grd%tracer_axes(1:3), &
        Time%model_time, 'Square of resolved velocity shear', 'm^2/s^2',                     &
        missing_value = missing_value, range=(/0.0,1.e3/))
 
@@ -1134,7 +1134,7 @@ subroutine vert_mix_kpp_mom4p1 (aidif, Time, Thickness, Velocity, T_prog, T_diag
       endif
     endif
 
-    if(id_dVsq > 0) call diagnose_3d_u(Time, Grd, id_dVsq, dVsq(:,:,:)) 
+    if(id_dVsq > 0) call diagnose_3d(Time, Grd, id_dVsq, dVsq(:,:,:)) 
 
 !-----------------------------------------------------------------------
 !     density related quantities

@@ -640,6 +640,11 @@ integer :: id_ekman_heat     =-1
 integer :: id_swflx          =-1
 integer :: id_swflx_vis      =-1
 
+integer :: id_sw_flux_vis_dir = -1
+integer :: id_sw_flux_vis_dif = -1
+integer :: id_sw_flux_nir_dir = -1
+integer :: id_sw_flux_nir_dif = -1
+
 integer :: id_lw_heat            =-1
 integer :: id_sens_heat          =-1
 integer :: id_fprec_melt_heat    =-1
@@ -675,6 +680,7 @@ integer :: id_wfiform        =-1
 #if defined(ACCESS_CM)
 integer :: id_licefw        =-1
 integer :: id_liceht        =-1
+integer :: id_mh_flux       =-1
 #endif
 
 
@@ -753,6 +759,7 @@ integer :: id_total_ocean_wfimelt =-1
 integer :: id_total_ocean_wfiform =-1
 integer :: id_total_ocean_licefw  =-1
 integer :: id_total_ocean_liceht  =-1
+integer :: id_total_ocean_mh_flux =-1
 #endif
 
 
@@ -1892,6 +1899,11 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
         Time%model_time, 'heat into ocean due to land ice discharge-melt (>0 heats ocean)', &
         '(W/M^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
         standard_name='liceht_flux')
+
+  id_mh_flux = register_diag_field('ocean_model','mh_flux', Grd%tracer_axes(1:2), &
+        Time%model_time, 'heat into ocean due to melting ice (>0 heats ocean)', &
+        '(W/m^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
+        standard_name='mh_flux')
 #endif
 
   id_swflx = register_diag_field('ocean_model','swflx', Grd%tracer_axes(1:2),  &
@@ -1902,6 +1914,22 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
   id_swflx_vis = register_diag_field('ocean_model','swflx_vis', Grd%tracer_axes(1:2),&
        Time%model_time, 'visible shortwave into ocean (>0 heats ocean)', 'W/m^2' ,   &
        missing_value=missing_value,range=(/-1.e10,1.e10/))   
+
+  id_sw_flux_vis_dir = register_diag_field('ocean_model','sw_flux_vis_dir', Grd%tracer_axes(1:2),&
+      Time%model_time, 'direct visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2' ,  &
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_vis_dif = register_diag_field('ocean_model','sw_flux_vis_dif', Grd%tracer_axes(1:2),&
+      Time%model_time, 'diffuse visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2' , &
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_nir_dir = register_diag_field('ocean_model','sw_flux_nir_dir', Grd%tracer_axes(1:2),&
+      Time%model_time, 'direct near-infrared visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2',&
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
+
+  id_sw_flux_nir_dif = register_diag_field('ocean_model','sw_flux_nir_dif', Grd%tracer_axes(1:2),&
+      Time%model_time, 'diffuse near-infrared visible shortwave radiation [W m-2] (>0 heats ocean)', 'W/m^2',&
+      missing_value=missing_value,range=(/-1.e10,1.e10/)) 
 
   id_evap_heat = register_diag_field('ocean_model','evap_heat', Grd%tracer_axes(1:2),&
        Time%model_time, 'latent heat flux into ocean (<0 cools ocean)', 'W/m^2',     &
@@ -1983,6 +2011,9 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
         'kg/sec/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
   id_total_ocean_liceht = register_diag_field('ocean_model','total_ocean_liceht',  &
         Time%model_time, 'total land icemelt heat flux into ocean (>0 heats ocean)', &
+        'Watts/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
+  id_total_ocean_mh_flux = register_diag_field('ocean_model','total_ocean_mh_flux',  &
+        Time%model_time, 'total heat flux into ocean from melting ice (>0 heats ocean)', &
         'Watts/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
 #endif
 
@@ -3263,6 +3294,11 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   real, dimension(isd:ied,jsd:jed) :: longwave
   real, dimension(isd:ied,jsd:jed) :: latent 
 
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dif
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_vis_dir
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dif
+  real, dimension(isd:ied,jsd:jed) :: sw_flux_nir_dir
+
   type(time_type)                  :: time_dtime 
 
   real    :: tmp_x, tmp_y
@@ -3291,6 +3327,11 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   sensible     = 0.0   ! (W/m^2)      positive when enters liquid ocean 
   longwave     = 0.0   ! (W/m^2)      positive when enters liquid ocean 
   latent       = 0.0   ! (W/m^2)      positive when enters liquid ocean  
+
+  sw_flux_vis_dif = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_vis_dir = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_nir_dif = 0.0! (W/m^2)      positive when enters liquid ocean
+  sw_flux_nir_dir = 0.0! (W/m^2)      positive when enters liquid ocean
 
   ! for diagnostics related to sea level forcing
   do j=jsd,jed
@@ -4169,6 +4210,18 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
       swflx_vis(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)               &
         *(Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd) &
        +  Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_vis_dif(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *(Ice_ocean_boundary%sw_flux_vis_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_vis_dir(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *(Ice_ocean_boundary%sw_flux_vis_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_nir_dif(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *(Ice_ocean_boundary%sw_flux_nir_dif(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
+
+      sw_flux_nir_dir(isc:iec,jsc:jec) = Grd%tmask(isc:iec,jsc:jec,1)         &
+        *(Ice_ocean_boundary%sw_flux_nir_dir(isc_bnd:iec_bnd,jsc_bnd:jec_bnd))
   endif 
 
 
@@ -4295,7 +4348,8 @@ subroutine get_ocean_sbc(Time, Ice_ocean_boundary, Thickness, Dens, Ext_mode, T_
   call ocean_sbc_diag (Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,        &
                       pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
                       melt, liquid_precip, frozen_precip, evaporation, sensible, longwave, &
-                      latent, swflx, swflx_vis)
+                      latent, swflx, swflx_vis, sw_flux_vis_dif, sw_flux_vis_dir,          &
+                      sw_flux_nir_dif, sw_flux_nir_dir)
 
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
   do j = jsc_bnd,jec_bnd
@@ -5097,7 +5151,8 @@ end subroutine flux_adjust
 subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_boundary,     &
                       pme, runoff, calving, river, alphasfc, betasfc, alphasfc2, betasfc2, &
                       melt, liquid_precip,  frozen_precip, evaporation, sensible, longwave,&
-                      latent, swflx, swflx_vis)
+                      latent, swflx, swflx_vis, sw_flux_vis_dif, sw_flux_vis_dir,          &
+                      sw_flux_nir_dif, sw_flux_nir_dir)
 
   type(ocean_time_type),          intent(in) :: Time 
   type(ocean_velocity_type),      intent(in) :: Velocity
@@ -5122,6 +5177,10 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
   real, dimension(isd:,jsd:),     intent(in) :: latent
   real, dimension(isd:,jsd:),     intent(in) :: swflx
   real, dimension(isd:,jsd:),     intent(in) :: swflx_vis
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_vis_dir
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_nir_dif
+  real, dimension(isd:,jsd:),     intent(in) :: sw_flux_nir_dir
 
   real, dimension(isd:ied,jsd:jed) :: tmp_flux
 
@@ -5516,6 +5575,13 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
 
   ! shortwave flux (W/m2)
   call diagnose_2d(Time, Grd, id_swflx, swflx(:,:))
+
+  ! visible and near-infrared components of shortwave radiation (direct and diffuse)
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dif, sw_flux_vis_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_vis_dir, sw_flux_vis_dir(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dif, sw_flux_nir_dif(:,:))
+  call diagnose_2d(Time, Grd, id_sw_flux_nir_dir, sw_flux_nir_dir(:,:))
+
   ! total shortwave heat transport (Watts)
   call diagnose_sum(Time, Grd, Dom, id_total_ocean_swflx, swflx, 1e-15)
   ! swflx impacts on water mass transformation in neutral density classes 
@@ -5689,6 +5755,29 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
               Time%model_time, rmask=Grd%tmask(:,:,1),  &
               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
    endif
+#endif
+
+! Heat into ocean due to melting ice (>0 heats ocean)
+   if (id_mh_flux > 0) then
+       do j=jsc_bnd,jec_bnd
+          do i=isc_bnd,iec_bnd
+             ii=i+i_shift
+             jj=j+j_shift
+             tmp_flux(ii,jj) = Ice_ocean_boundary%mh_flux(i,j)
+          enddo
+       enddo
+      call diagnose_2d(Time, Grd, id_mh_flux, tmp_flux(:,:))
+   endif
+   if (id_total_ocean_mh_flux > 0) then
+       do j=jsc_bnd,jec_bnd
+          do i=isc_bnd,iec_bnd
+             ii=i+i_shift
+             jj=j+j_shift
+             tmp_flux(ii,jj) = Ice_ocean_boundary%mh_flux(i,j)
+          enddo
+       enddo
+       call diagnose_sum(Time, Grd, Dom, id_total_ocean_mh_flux, tmp_flux, 1e-15)
+    endif
 #endif
 
   !--------salt related diagnostics ------------------------------------

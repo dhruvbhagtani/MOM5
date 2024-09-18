@@ -5755,7 +5755,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
               Time%model_time, rmask=Grd%tmask(:,:,1),  &
               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
    endif
-#endif
 
 ! Heat into ocean due to melting ice (>0 heats ocean)
    if (id_mh_flux > 0) then

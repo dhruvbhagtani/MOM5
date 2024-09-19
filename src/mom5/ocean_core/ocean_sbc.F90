@@ -676,11 +676,11 @@ integer :: id_restore_mask   =-1
 #if defined(ACCESS_CM) || defined(ACCESS_OM)
 integer :: id_wfimelt        =-1
 integer :: id_wfiform        =-1
+integer :: id_mh_flux        =-1
 #endif
 #if defined(ACCESS_CM)
 integer :: id_licefw        =-1
 integer :: id_liceht        =-1
-integer :: id_mh_flux       =-1
 #endif
 
 

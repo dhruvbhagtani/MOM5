@@ -1887,6 +1887,11 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
        Time%model_time, 'water out of ocean due to ice form (>0 enters ocean)',         &
        '(kg/m^3)*(m/sec)', missing_value=missing_value,range=(/-1.e-1,1.e-1/),&
        standard_name='iceform_flux')
+
+ id_mh_flux = register_diag_field('ocean_model','mh_flux', Grd%tracer_axes(1:2), &
+        Time%model_time, 'heat into ocean due to melting ice (>0 heats ocean)', &
+        '(W/m^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
+        standard_name='mh_flux')
 #endif
 
 #if defined(ACCESS_CM)
@@ -1899,11 +1904,6 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
         Time%model_time, 'heat into ocean due to land ice discharge-melt (>0 heats ocean)', &
         '(W/M^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
         standard_name='liceht_flux')
-
-  id_mh_flux = register_diag_field('ocean_model','mh_flux', Grd%tracer_axes(1:2), &
-        Time%model_time, 'heat into ocean due to melting ice (>0 heats ocean)', &
-        '(W/m^2)', missing_value=missing_value,range=(/-1.e10,1.e10/),&
-        standard_name='mh_flux')
 #endif
 
   id_swflx = register_diag_field('ocean_model','swflx', Grd%tracer_axes(1:2),  &
@@ -2003,6 +2003,9 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
  id_total_ocean_wfiform = register_diag_field('ocean_model','total_ocean_wfiform',  &
        Time%model_time, 'total iceform outof ocean (>0 enters ocean)',     &
        'kg/sec/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
+ id_total_ocean_mh_flux = register_diag_field('ocean_model','total_ocean_mh_flux',  &
+        Time%model_time, 'total heat flux into ocean from melting ice (>0 heats ocean)', &
+        'Watts/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
 #endif 
 
 #if defined(ACCESS_CM)
@@ -2011,9 +2014,6 @@ subroutine ocean_sbc_diag_init(Time, Dens, T_prog)
         'kg/sec/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
   id_total_ocean_liceht = register_diag_field('ocean_model','total_ocean_liceht',  &
         Time%model_time, 'total land icemelt heat flux into ocean (>0 heats ocean)', &
-        'Watts/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
-  id_total_ocean_mh_flux = register_diag_field('ocean_model','total_ocean_mh_flux',  &
-        Time%model_time, 'total heat flux into ocean from melting ice (>0 heats ocean)', &
         'Watts/1e15', missing_value=missing_value,range=(/-1.e10,1.e10/))
 #endif
 
@@ -5741,6 +5741,29 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_flux_on_nrho, wrk1)
   endif
 
+  ! Heat into ocean due to melting ice (>0 heats ocean)
+   if (id_mh_flux > 0) then
+       do j=jsc_bnd,jec_bnd
+          do i=isc_bnd,iec_bnd
+             ii=i+i_shift
+             jj=j+j_shift
+             tmp_flux(ii,jj) = Ice_ocean_boundary%mh_flux(i,j)
+          enddo
+       enddo
+      call diagnose_2d(Time, Grd, id_mh_flux, tmp_flux(:,:))
+   endif
+
+   if (id_total_ocean_mh_flux > 0) then
+       do j=jsc_bnd,jec_bnd
+          do i=isc_bnd,iec_bnd
+             ii=i+i_shift
+             jj=j+j_shift
+             tmp_flux(ii,jj) = Ice_ocean_boundary%mh_flux(i,j)
+          enddo
+       enddo
+       call diagnose_sum(Time, Grd, Dom, id_total_ocean_mh_flux, tmp_flux, 1e-15)
+    endif
+
 #if defined(ACCESS_CM)
    ! Heat into ocean due to land ice discharge-melt (>0 heats ocean)
    if (id_liceht > 0) then
@@ -5755,28 +5778,6 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
               Time%model_time, rmask=Grd%tmask(:,:,1),  &
               is_in=isc, js_in=jsc, ie_in=iec, je_in=jec)
    endif
-
-! Heat into ocean due to melting ice (>0 heats ocean)
-   if (id_mh_flux > 0) then
-       do j=jsc_bnd,jec_bnd
-          do i=isc_bnd,iec_bnd
-             ii=i+i_shift
-             jj=j+j_shift
-             tmp_flux(ii,jj) = Ice_ocean_boundary%mh_flux(i,j)
-          enddo
-       enddo
-      call diagnose_2d(Time, Grd, id_mh_flux, tmp_flux(:,:))
-   endif
-   if (id_total_ocean_mh_flux > 0) then
-       do j=jsc_bnd,jec_bnd
-          do i=isc_bnd,iec_bnd
-             ii=i+i_shift
-             jj=j+j_shift
-             tmp_flux(ii,jj) = Ice_ocean_boundary%mh_flux(i,j)
-          enddo
-       enddo
-       call diagnose_sum(Time, Grd, Dom, id_total_ocean_mh_flux, tmp_flux, 1e-15)
-    endif
 #endif
 
   !--------salt related diagnostics ------------------------------------

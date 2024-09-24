@@ -5740,7 +5740,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
       enddo
       call diagnose_3d_rho(Time, Dens, id_tform_rho_pbl_flux_on_nrho, wrk1)
   endif
-
+#if defined(ACCESS_CM) || defined(ACCESS_OM)
   ! Heat into ocean due to melting ice (>0 heats ocean)
    if (id_mh_flux > 0) then
        do j=jsc_bnd,jec_bnd
@@ -5763,6 +5763,7 @@ subroutine ocean_sbc_diag(Time, Velocity, Thickness, Dens, T_prog, Ice_ocean_bou
        enddo
        call diagnose_sum(Time, Grd, Dom, id_total_ocean_mh_flux, tmp_flux, 1e-15)
     endif
+#endif
 
 #if defined(ACCESS_CM)
    ! Heat into ocean due to land ice discharge-melt (>0 heats ocean)
